@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Тексер — проверка БЖБ/ТЖБ по дескрипторам</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2330;--mut:#667085;--line:#e4e7ec;--acc:#2f5bd3;--ok:#1f8a4c;--bad:#c4372f;--soft:#eef2fd}
+*{box-sizing:border-box}body{margin:0;font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+h1{font-size:20px;margin:0}h1 small{font-weight:400;color:var(--mut);font-size:13px;margin-left:6px}
+h2{font-size:17px;margin:0 0 10px}main{max-width:980px;margin:0 auto;padding:16px;display:grid;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,label.btn{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px;cursor:pointer}
+button.primary,label.primary{background:var(--acc);border-color:var(--acc);color:#fff}button:disabled{opacity:.5;cursor:default}
+button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.mut{color:var(--mut);font-size:14px}.badge{font-size:12px;padding:3px 8px;border-radius:99px;background:var(--soft);color:var(--acc)}
+.parts{margin:8px 0 0;padding-left:20px}.parts li{margin:2px 0}
+pre{white-space:pre-wrap;background:#fafafa;border:1px dashed var(--line);border-radius:8px;padding:10px;font:15px/1.5 "Comic Sans MS","Segoe Print",cursive;margin:8px 0}
+.desc{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.desc input{width:20px;height:20px;margin-top:2px}
+.desc .c{color:var(--mut);font-size:14px}.score{font-size:22px;font-weight:700}
+.err{background:#fff5f4;border-left:4px solid var(--bad);padding:8px 10px;border-radius:6px;margin:10px 0}
+.okbox{background:#f1fbf5;border-left:4px solid var(--ok);padding:8px 10px;border-radius:6px;margin:10px 0}
+textarea{width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px}
+.bar{display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:center;margin:6px 0}.bar .t{font-size:14px}
+.bar .track{grid-column:1/-1;height:10px;background:#eef0f3;border-radius:6px;overflow:hidden}.bar .fill{height:100%;background:var(--bad)}
+.tip{background:var(--soft);border-radius:8px;padding:10px;margin-top:8px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;display:none;max-width:90%}
+img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(--line)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Тексер <small data-i="sub"></small></h1>
+  <div class="row"><span id="status" class="badge"></span>
+    <span class="lang row"><button data-l="ru" class="on">РУС</button><button data-l="kk">ҚАЗ</button></span></div>
+</header>
+<main>
+  <section class="card">
+    <h2 data-i="s1"></h2>
+    <div id="taskTitle" class="mut"></div>
+    <ol id="parts" class="parts"></ol>
+    <p class="mut" data-i="demoHelp"></p>
+    <div class="row" id="demoBtns"></div>
+    <div class="row" style="margin-top:10px">
+      <label class="btn primary" id="upLabel"><span data-i="upload"></span><input id="file" type="file" accept="image/*" capture="environment" hidden></label>
+      <span class="mut" id="upNote"></span>
+    </div>
+  </section>
+
+  <section class="card hidden" id="checkCard">
+    <h2 data-i="s2"></h2>
+    <div class="row" style="justify-content:space-between"><b id="who"></b><span><span class="score" id="score"></span> <span class="mut">/ <span id="max"></span></span></span></div>
+    <img id="prev" class="prev hidden" alt="">
+    <pre id="transcript"></pre>
+    <div id="descs"></div>
+    <div id="errBox"></div>
+    <label class="mut" data-i="hintLbl"></label>
+    <textarea id="hint" rows="2"></textarea>
+    <div class="row" style="margin-top:10px"><button class="primary" id="approve" data-i="approve"></button><span class="mut" id="aiNote"></span></div>
+  </section>
+
+  <section class="card">
+    <h2 data-i="s3"></h2>
+    <div class="row"><button id="srcDemo" class="on" data-i="srcDemo"></button><button id="srcMine" data-i="srcMine"></button>
+      <button id="csv" data-i="csv"></button></div>
+    <p class="mut" id="mapInfo"></p>
+    <div id="bars"></div>
+    <h3 style="font-size:15px;margin:14px 0 0" data-i="next"></h3>
+    <div id="tips"></div>
+  </section>
+  <p class="mut" style="text-align:center" data-i="privacy"></p>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const T = {
+  ru:{sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
+    demoHelp:"Демо: откройте готовую работу (вымышленные ученики) или загрузите своё фото.",work:"Работа",upload:"📷 Загрузить фото работы",
+    hintLbl:"Подсказка ученику (по первой ошибке, без ответа) — можно править:",approve:"✓ Утвердить",firstErr:"Первая ошибка",noErr:"Ошибок нет",
+    srcDemo:"Демо-класс",srcMine:"Мои утверждённые",csv:"⬇ Баллы в CSV",next:"Что разобрать на следующем уроке",
+    mapDemo:(n)=>`Вымышленный класс, ${n} учеников. Доля учеников с ошибкой:`,mapMine:(n)=>`Утверждено работ: ${n}. Доля работ с ошибкой:`,
+    empty:"Пока нет утверждённых работ.",live:(m)=>`ИИ: ${m}`,demoOnly:"Демо-режим",noKey:"Загрузка своих фото выключена (нет ключа API).",
+    checking:"ИИ проверяет фото… (10–30 с)",sent:"Демо: сообщение ученику сформировано, ничего не отправлено.",aiScore:(s)=>`Балл ИИ: ${s}`,
+    unread:"Фото нечитаемо — переснимите при хорошем свете.",privacy:"Фото не сохраняются на сервере. Только вымышленные или обезличенные данные; ученики — коды."},
+  kk:{sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
+    demoHelp:"Демо: дайын жұмысты ашыңыз (ойдан алынған оқушылар) немесе өз фотоңызды жүктеңіз.",work:"Жұмыс",upload:"📷 Жұмыс фотосын жүктеу",
+    hintLbl:"Оқушыға кеңес (бірінші қате бойынша, жауапсыз) — түзетуге болады:",approve:"✓ Бекіту",firstErr:"Бірінші қате",noErr:"Қате жоқ",
+    srcDemo:"Демо-сынып",srcMine:"Менің бекіткендерім",csv:"⬇ Ұпайлар CSV",next:"Келесі сабақта нені талдау керек",
+    mapDemo:(n)=>`Ойдан алынған сынып, ${n} оқушы. Қате жіберген оқушылар үлесі:`,mapMine:(n)=>`Бекітілген жұмыстар: ${n}. Қатесі бар жұмыстар үлесі:`,
+    empty:"Әзірге бекітілген жұмыс жоқ.",live:(m)=>`ЖИ: ${m}`,demoOnly:"Демо-режим",noKey:"Өз фотоңызды жүктеу өшірулі (API кілті жоқ).",
+    checking:"ЖИ фотоны тексеріп жатыр… (10–30 с)",sent:"Демо: оқушыға хабарлама дайын, ештеңе жіберілмеді.",aiScore:(s)=>`ЖИ ұпайы: ${s}`,
+    unread:"Фото оқылмайды — жақсы жарықта қайта түсіріңіз.",privacy:"Фотолар серверде сақталмайды. Тек ойдан алынған немесе иесіз деректер; оқушылар — кодтар."}
+};
+let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo";
+const $=(id)=>document.getElementById(id), t=(k,...a)=>{const v=T[lang][k];return typeof v==="function"?v(...a):v};
+const store={get(){try{return JSON.parse(localStorage.getItem("tekser.approved")||"[]")}catch{return mem}},set(v){mem=v;try{localStorage.setItem("tekser.approved",JSON.stringify(v))}catch{}}};
+let mem=[];
+const task=()=>tasks[0];
+const tagName=(id)=>{const e=task().errorTags.find(x=>x.id===id);return e?(lang==="kk"?e.kk:e.ru):id};
+function toast(m){const el=$("toast");el.textContent=m;el.style.display="block";clearTimeout(el._t);el._t=setTimeout(()=>el.style.display="none",3500)}
+
+function renderStatic(){
+  document.querySelectorAll("[data-i]").forEach(el=>el.textContent=t(el.dataset.i));
+  document.documentElement.lang=lang==="kk"?"kk":"ru";
+  $("status").textContent=status.live?t("live",status.model):t("demoOnly");
+  $("upNote").textContent=status.live?"":t("noKey");
+  $("upLabel").style.opacity=status.live?1:.5;
+  $("taskTitle").textContent=task().title[lang];
+  $("parts").innerHTML=task().parts.map(p=>`<li>${p.text}</li>`).join("");
+  $("demoBtns").innerHTML=demo.works.map(w=>`<button data-w="${w.id}">${t("work")} ${({A:"А",B:"Б",C:"В"})[w.id]} · ${w.student}</button>`).join("");
+  document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>openDemo(b.dataset.w));
+  $("srcDemo").classList.toggle("on",src==="demo");$("srcMine").classList.toggle("on",src==="mine");
+  if(cur) renderCheck(); renderMap();
+}
+
+function openDemo(id){const w=demo.works.find(x=>x.id===id);cur={student:w.student,image:null,res:structuredClone(w.result),transcript:w.transcript,approved:false};cur.aiScore=scoreOf(cur.res);renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"})}
+const scoreOf=(r)=>r.descriptors.filter(d=>d.met).length;
+
+function renderCheck(){
+  $("checkCard").classList.remove("hidden");
+  const r=cur.res, ds=task().descriptors;
+  $("who").textContent=cur.student;$("max").textContent=ds.length;$("score").textContent=scoreOf(r);
+  $("prev").classList.toggle("hidden",!cur.image);if(cur.image)$("prev").src=cur.image;
+  $("transcript").textContent=r.readable===false?t("unread"):(cur.transcript||r.transcript||"");
+  $("descs").innerHTML=ds.map(d=>{const x=r.descriptors.find(y=>y.id===d.id)||{met:false,comment:""};
+    return `<label class="desc"><input type="checkbox" data-d="${d.id}" ${x.met?"checked":""} ${cur.approved?"disabled":""}><span><b>${d.id}</b> ${lang==="kk"?d.kk:d.text}<br><span class="c">${x.comment||""}</span></span></label>`}).join("");
+  document.querySelectorAll("[data-d]").forEach(c=>c.onchange=()=>{r.descriptors.find(y=>y.id===c.dataset.d).met=c.checked;$("score").textContent=scoreOf(r)});
+  $("errBox").innerHTML=r.first_error?`<div class="err"><b>${t("firstErr")} (${r.first_error.part}):</b> ${r.first_error.text}${r.error_tags.length?`<br><span class="mut">${r.error_tags.map(tagName).join(" · ")}</span>`:""}</div>`:`<div class="okbox">${t("noErr")}</div>`;
+  $("hint").value=r.hint;$("hint").disabled=cur.approved;
+  $("approve").disabled=cur.approved;$("aiNote").textContent=t("aiScore",cur.aiScore);
+}
+
+$("approve").onclick=()=>{
+  const r=cur.res;r.hint=$("hint").value.trim();cur.approved=true;
+  const list=store.get().filter(x=>x.student!==cur.student);
+  list.push({student:cur.student,score:scoreOf(r),aiScore:cur.aiScore,edited:scoreOf(r)!==cur.aiScore,tags:r.error_tags,hint:r.hint,ts:Date.now()});
+  store.set(list);renderCheck();src="mine";renderStatic();toast(t("sent"));
+};
+
+function renderMap(){
+  let counts={},n=0;
+  if(src==="demo"){counts=demo.demoClass.tagCounts;n=demo.demoClass.students;$("mapInfo").textContent=t("mapDemo",n)}
+  else{const l=store.get();n=l.length;l.forEach(x=>x.tags.forEach(g=>counts[g]=(counts[g]||0)+1));$("mapInfo").textContent=n?t("mapMine",n):t("empty")}
+  const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  $("bars").innerHTML=rows.map(([g,c])=>{const p=Math.round(100*c/n);return `<div class="bar"><span class="t">${tagName(g)}</span><b>${c} · ${p}%</b><div class="track"><div class="fill" style="width:${p}%"></div></div></div>`}).join("");
+  $("tips").innerHTML=rows.slice(0,2).map(([g])=>{const e=task().errorTags.find(x=>x.id===g);return e?`<div class="tip"><b>${tagName(g)}</b><br>${e.tip[lang]}</div>`:""}).join("");
+}
+$("srcDemo").onclick=()=>{src="demo";renderStatic()};$("srcMine").onclick=()=>{src="mine";renderStatic()};
+$("csv").onclick=()=>{
+  const l=store.get(), ds=task().descriptors.length;
+  const rows=[["Ученик","Балл","Макс","Балл ИИ","Исправлено учителем","Ошибки"],...l.map(x=>[x.student,x.score,ds,x.aiScore,x.edited?"да":"нет",x.tags.map(tagName).join("; ")])];
+  const csv="﻿"+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="tekser-bally.csv";a.click();
+};
+document.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{lang=b.dataset.l;document.querySelectorAll("[data-l]").forEach(x=>x.classList.toggle("on",x===b));renderStatic()});
+
+function shrink(file){return new Promise((ok,no)=>{const img=new Image();img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))};img.onerror=no;img.src=URL.createObjectURL(file)})}
+$("file").onchange=async(e)=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;if(!status.live){toast(t("noKey"));return}
+  const image=await shrink(f);const n=store.get().length+demo.works.length+1;
+  cur={student:"У-"+String(n).padStart(2,"0"),image,res:{readable:true,transcript:"",descriptors:[],first_error:null,hint:"",error_tags:[]},approved:true};
+  renderCheck();$("transcript").textContent=t("checking");$("checkCard").scrollIntoView({behavior:"smooth"});
+  try{const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId:task().id,image,lang})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error);cur.res=d;cur.transcript=d.transcript;cur.aiScore=scoreOf(d);cur.approved=false;renderCheck();}
+  catch(err){$("transcript").textContent=err.message}
+};
+
+Promise.all([fetch("/api/tasks").then(r=>r.json()),fetch("/api/demo").then(r=>r.json()),fetch("/api/status").then(r=>r.json())])
+  .then(([a,b,c])=>{tasks=a;demo=b;status=c;renderStatic()});
+</script>
+</body>
+</html>
