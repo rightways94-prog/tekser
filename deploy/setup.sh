@@ -20,6 +20,7 @@ if [ ! -x "$DIR/node/bin/node" ]; then
 fi
 export PATH="$DIR/node/bin:$PATH"
 id tekser >/dev/null 2>&1 || useradd -r -d "$DIR" -s /usr/sbin/nologin tekser
+git config --global --get-all safe.directory | grep -qx "$DIR/app" || git config --global --add safe.directory "$DIR/app"
 if [ -d "$DIR/app/.git" ]; then git -C "$DIR/app" pull --ff-only; else git clone "$REPO" "$DIR/app"; fi
 cd "$DIR/app" && npm install --omit=dev --no-audit --no-fund
 if [ ! -f "$DIR/app/.env" ]; then
@@ -40,6 +41,19 @@ Restart=always
 WantedBy=multi-user.target
 UNIT
 systemctl daemon-reload && systemctl enable --now tekser && systemctl restart tekser
+# Автообновление: раз в 5 минут подтягивает новый код из GitHub (только Тексер)
+cat > "$DIR/update.sh" <<'UPD'
+#!/usr/bin/env bash
+cd /opt/tekser/app || exit 0
+old=$(git rev-parse HEAD); git pull -q --ff-only || exit 0; new=$(git rev-parse HEAD)
+[ "$old" = "$new" ] && exit 0
+PATH=/opt/tekser/node/bin:$PATH npm install --omit=dev --no-audit --no-fund -q
+chown -R tekser:tekser /opt/tekser && systemctl restart tekser
+UPD
+chmod +x "$DIR/update.sh"
+printf '[Unit]\nDescription=Tekser auto-update\n[Service]\nType=oneshot\nExecStart=%s/update.sh\n' "$DIR" > /etc/systemd/system/tekser-update.service
+printf '[Unit]\nDescription=Tekser auto-update every 5 min\n[Timer]\nOnBootSec=2min\nOnUnitActiveSec=5min\n[Install]\nWantedBy=timers.target\n' > /etc/systemd/system/tekser-update.timer
+systemctl daemon-reload && systemctl enable --now tekser-update.timer
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw allow "$PORT/tcp"; fi
 sleep 2; systemctl --no-pager --lines=3 status tekser | head -6
 echo; echo "ГОТОВО: http://$(curl -fsS4 https://api.ipify.org):$PORT"
