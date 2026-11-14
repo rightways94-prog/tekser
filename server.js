@@ -10,7 +10,7 @@ const LIMIT = Number(process.env.LIMIT_PER_HOUR || 5);
 const tasks = JSON.parse(readFileSync(new URL("./data/tasks.json", import.meta.url)));
 const app = express();
 app.set("trust proxy", 1); // за Caddy: настоящий IP для лимита
-app.use(express.json({ limit: "8mb" }));
+app.use(express.json({ limit: "20mb" }));
 app.use(express.static(new URL("./public", import.meta.url).pathname));
 
 app.get("/api/status", (_req, res) => res.json({ live: Boolean(KEY), model: KEY ? MODEL : null, limitPerHour: LIMIT }));
@@ -31,9 +31,10 @@ function allowed(ip) {
 const schema = {
   type: "object",
   additionalProperties: false,
-  required: ["readable", "transcript", "descriptors", "first_error", "hint", "error_tags"],
+  required: ["readable", "variant", "transcript", "descriptors", "first_error", "hint", "error_tags"],
   properties: {
     readable: { type: "boolean" },
+    variant: { type: "string" },
     transcript: { type: "string" },
     descriptors: {
       type: "array",
@@ -60,22 +61,27 @@ const schema = {
   },
 };
 
-function buildPrompt(task, lang) {
+function buildPrompt(task, lang, pages) {
   const L = lang === "kk" ? "казахском" : "русском";
+  const key = task.variants
+    ? Object.entries(task.variants).map(([v, ps]) => `ВАРИАНТ ${v}:\n` + ps.map((p) => `${p.id}) ${p.text} → эталон: ${p.answer}`).join("\n")).join("\n\n")
+    : `Задание и эталон:\n${task.parts.map((p) => `${p.id}) ${p.text} → эталон: ${p.answer}`).join("\n")}`;
   return [
-    "Ты проверяешь письменную работу ученика по математике (фото) по дескрипторам суммативного оценивания (БЖБ).",
-    `Задание:\n${task.parts.map((p) => `${p.id}) ${p.text}`).join("\n")}`,
-    `Эталон:\n${task.parts.map((p) => `${p.id}) ${p.answer}`).join("\n")}`,
-    `Дескрипторы (по 1 баллу):\n${task.descriptors.map((d) => `${d.id}: ${d.text}`).join("\n")}`,
+    "Ты проверяешь письменную работу ученика по математике (фото) по дескрипторам суммативного оценивания (БЖБ/СОР).",
+    pages > 1 ? `Работа одного ученика на ${pages} фото (страницах) — оцени её целиком.` : "",
+    task.variants ? "Номер варианта напечатан на листе (VARIANT NN). Определи его, запиши в variant и используй эталон этого варианта. Если номер не виден — variant=\"?\", подбери вариант по условиям." : 'variant = "".',
+    key,
+    `Дескрипторы (по 1 баллу; номер задания в скобках):\n${task.descriptors.map((d) => `${d.id} (задание ${d.part}): ${d.text}`).join("\n")}`,
     `Коды типичных ошибок: ${task.errorTags.map((e) => `${e.id} — ${e.ru}`).join("; ")}.`,
     "Правила:",
-    "- Сначала перепиши решение с фото в transcript (кратко, как есть). Если фото нечитаемо — readable=false и все дескрипторы met=false.",
-    "- Дескриптор засчитывается, только если в работе есть верное действие/ответ по нему. Верный ответ другим верным способом засчитывается.",
-    "- first_error: первая существенная ошибка (часть задания и что именно не так) или null, если ошибок нет.",
-    `- hint: одна короткая подсказка ученику на ${L} языке к первой ошибке, без полного решения и без ответа. Если ошибок нет — «Все правильно.»`,
-    "- error_tags: коды из списка для всех найденных ошибок (можно пустой массив).",
+    "- Сначала перепиши решение в transcript кратко, по номерам заданий. Имя ученика НЕ переписывай. Если фото нечитаемо — readable=false и все дескрипторы met=false.",
+    "- Дескриптор засчитывается, только если в работе есть верное действие/ответ по нему. Черновик (DRAFT) учитывай как показ хода решения. Верный ответ другим верным способом засчитывается.",
+    "- Если символ читается двояко (запятая/точка, минус в показателе), не угадывай в пользу ученика: укажи это в comment дескриптора словами «прочитано неуверенно».",
+    "- first_error: первая существенная ошибка (номер задания и что не так) или null.",
+    `- hint: одна короткая подсказка ученику на ${L} языке к первой ошибке, без решения и без ответа. Если ошибок нет — «Все правильно.»`,
+    "- error_tags: коды из списка для всех найденных ошибок.",
     `- comment к дескрипторам — до 12 слов на ${L} языке.`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function outputText(r) {
@@ -87,8 +93,9 @@ function outputText(r) {
 app.post("/api/check", async (req, res) => {
   if (!KEY) return res.status(503).json({ error: "Проверка своих фото выключена: нет ключа API. Работает демо-режим." });
   const { taskId, image, lang } = req.body || {};
+  const images = (Array.isArray(req.body?.images) ? req.body.images : [image]).filter((x) => typeof x === "string" && x.startsWith("data:image/")).slice(0, 4);
   const task = tasks.find((t) => t.id === taskId);
-  if (!task || typeof image !== "string" || !image.startsWith("data:image/")) return res.status(400).json({ error: "Нужны задание и фото." });
+  if (!task || !images.length) return res.status(400).json({ error: "Нужны задание и фото." });
   if (!allowed(req.ip)) return res.status(429).json({ error: `Лимит: ${LIMIT} фото в час. Попробуйте позже или используйте демо-работы.` });
   try {
     const r = await fetch("https://api.openai.com/v1/responses", {
@@ -97,8 +104,8 @@ app.post("/api/check", async (req, res) => {
       body: JSON.stringify({
         model: MODEL,
         input: [{ role: "user", content: [
-          { type: "input_text", text: buildPrompt(task, lang) },
-          { type: "input_image", image_url: image },
+          { type: "input_text", text: buildPrompt(task, lang, images.length) },
+          ...images.map((im) => ({ type: "input_image", image_url: im })),
         ] }],
         text: { format: { type: "json_schema", name: "bzhb_check", schema, strict: true } },
       }),
