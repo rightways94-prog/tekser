@@ -1,0 +1,59 @@
+{
+  "note": "Все данные вымышленные. Работы набраны для демо, ученики обозначены кодами.",
+  "works": [
+    {
+      "id": "A", "student": "У-01", "taskId": "alg7-bzhb-exponents",
+      "transcript": "1) (−3)⁻² = 1/9; 2⁻³·4 = 4/8 = 1/2; 1/9 + 1/2 = 2/18 + 9/18 = 11/18\n2) (−2a³b⁻²)² = 4a⁶b⁻⁴; (4a⁻¹b)⁻¹ = ¼ab⁻¹; 4a⁶b⁻⁴·¼ab⁻¹ = a⁷b⁻⁵ = a⁷/b⁵\n3) 5,2·10⁻⁴·3·10⁵ = 15,6·10 = 1,56·10²",
+      "result": {
+        "readable": true,
+        "descriptors": [
+          { "id": "D1", "met": true, "comment": "Обе степени найдены верно" },
+          { "id": "D2", "met": true, "comment": "Ответ 11/18" },
+          { "id": "D3", "met": true, "comment": "Коэффициент и показатели верны" },
+          { "id": "D4", "met": true, "comment": "Ответ a⁷/b⁵" },
+          { "id": "D5", "met": true, "comment": "1,56·10² — стандартный вид" }
+        ],
+        "first_error": null, "hint": "Все правильно.", "error_tags": []
+      }
+    },
+    {
+      "id": "B", "student": "У-02", "taskId": "alg7-bzhb-exponents",
+      "transcript": "1) (−3)⁻² = −1/9; 2⁻³·4 = 1/2; −1/9 + 1/2 = 7/18\n2) (−2a³b⁻²)² = 4a⁶b⁻⁴; ·¼ab⁻¹ = a⁷b⁻⁵\n3) 1,56·10²",
+      "result": {
+        "readable": true,
+        "descriptors": [
+          { "id": "D1", "met": false, "comment": "(−3)⁻² записано со знаком минус" },
+          { "id": "D2", "met": false, "comment": "Неверный ответ из-за знака" },
+          { "id": "D3", "met": true, "comment": "Верно" },
+          { "id": "D4", "met": true, "comment": "Верно" },
+          { "id": "D5", "met": true, "comment": "Верно" }
+        ],
+        "first_error": { "part": "1", "text": "(−3)⁻² вычислено как −1/9: потерян знак при чётной степени" },
+        "hint": "Посмотрите на (−3)⁻² ещё раз: какой знак у отрицательного числа в чётной степени?",
+        "error_tags": ["sign"]
+      }
+    },
+    {
+      "id": "C", "student": "У-03", "taskId": "alg7-bzhb-exponents",
+      "transcript": "1) 1/9 + 1/2 = 11/18\n2) (−2a³b⁻²)² = −2a⁶b⁻⁴; ·¼ab⁻¹ = −½a⁷b⁻⁵\n3) 5,2·10⁻⁴·3·10⁵ = 15,6·10¹",
+      "result": {
+        "readable": true,
+        "descriptors": [
+          { "id": "D1", "met": true, "comment": "Верно" },
+          { "id": "D2", "met": true, "comment": "Верно" },
+          { "id": "D3", "met": false, "comment": "−2 не возведено в квадрат" },
+          { "id": "D4", "met": false, "comment": "Ответ с лишним множителем −½" },
+          { "id": "D5", "met": false, "comment": "15,6 не в промежутке [1; 10)" }
+        ],
+        "first_error": { "part": "2", "text": "Коэффициент −2 не возведён в квадрат" },
+        "hint": "В задании 2 в квадрат возводится каждый множитель в скобке. Что получится из (−2)²?",
+        "error_tags": ["product", "stdform"]
+      }
+    }
+  ],
+  "demoClass": {
+    "name": "7«А» (демо)", "students": 24,
+    "scores": [5, 5, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 5, 4, 3, 2, 4, 3, 1, 4, 3, 5, 2, 3],
+    "tagCounts": { "sign": 9, "product": 7, "stdform": 6, "negexp": 4, "rules": 3, "arith": 2 }
+  }
+}
