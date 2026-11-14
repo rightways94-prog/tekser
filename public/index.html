@@ -40,12 +40,13 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 <main>
   <section class="card">
     <h2 data-i="s1"></h2>
+    <select id="taskSel" style="font:inherit;padding:6px;border-radius:8px;border:1px solid var(--line);width:100%;margin-bottom:6px"></select>
     <div id="taskTitle" class="mut"></div>
     <ol id="parts" class="parts"></ol>
-    <p class="mut" data-i="demoHelp"></p>
+    <p class="mut" data-i="demoHelp" id="demoHelp"></p>
     <div class="row" id="demoBtns"></div>
     <div class="row" style="margin-top:10px">
-      <label class="btn primary" id="upLabel"><span data-i="upload"></span><input id="file" type="file" accept="image/*" capture="environment" hidden></label>
+      <label class="btn primary" id="upLabel"><span data-i="upload"></span><input id="file" type="file" accept="image/*" multiple hidden></label>
       <span class="mut" id="upNote"></span>
     </div>
   </section>
@@ -78,7 +79,7 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 <script>
 const T = {
   ru:{sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
-    demoHelp:"Демо: откройте готовую работу (вымышленные ученики) или загрузите своё фото.",work:"Работа",upload:"📷 Загрузить фото работы",
+    demoHelp:"Демо: откройте готовую работу (вымышленные ученики) или загрузите своё фото.",work:"Работа",upload:"📷 Загрузить фото работы (1–4 страницы)",variants:(v)=>`Варианты ${v} — номер варианта ИИ читает с листа сам.`,variant:"вариант",
     hintLbl:"Подсказка ученику (по первой ошибке, без ответа) — можно править:",approve:"✓ Утвердить",firstErr:"Первая ошибка",noErr:"Ошибок нет",
     srcDemo:"Демо-класс",srcMine:"Мои утверждённые",csv:"⬇ Баллы в CSV",next:"Что разобрать на следующем уроке",
     mapDemo:(n)=>`Вымышленный класс, ${n} учеников. Доля учеников с ошибкой:`,mapMine:(n)=>`Утверждено работ: ${n}. Доля работ с ошибкой:`,
@@ -86,7 +87,7 @@ const T = {
     checking:"ИИ проверяет фото… (10–30 с)",sent:"Демо: сообщение ученику сформировано, ничего не отправлено.",aiScore:(s)=>`Балл ИИ: ${s}`,
     unread:"Фото нечитаемо — переснимите при хорошем свете.",privacy:"Фото не сохраняются на сервере. Только вымышленные или обезличенные данные; ученики — коды."},
   kk:{sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
-    demoHelp:"Демо: дайын жұмысты ашыңыз (ойдан алынған оқушылар) немесе өз фотоңызды жүктеңіз.",work:"Жұмыс",upload:"📷 Жұмыс фотосын жүктеу",
+    demoHelp:"Демо: дайын жұмысты ашыңыз (ойдан алынған оқушылар) немесе өз фотоңызды жүктеңіз.",work:"Жұмыс",upload:"📷 Жұмыс фотосын жүктеу (1–4 бет)",variants:(v)=>`Нұсқалар ${v} — нұсқа нөмірін ЖИ парақтан өзі оқиды.`,variant:"нұсқа",
     hintLbl:"Оқушыға кеңес (бірінші қате бойынша, жауапсыз) — түзетуге болады:",approve:"✓ Бекіту",firstErr:"Бірінші қате",noErr:"Қате жоқ",
     srcDemo:"Демо-сынып",srcMine:"Менің бекіткендерім",csv:"⬇ Ұпайлар CSV",next:"Келесі сабақта нені талдау керек",
     mapDemo:(n)=>`Ойдан алынған сынып, ${n} оқушы. Қате жіберген оқушылар үлесі:`,mapMine:(n)=>`Бекітілген жұмыстар: ${n}. Қатесі бар жұмыстар үлесі:`,
@@ -94,11 +95,12 @@ const T = {
     checking:"ЖИ фотоны тексеріп жатыр… (10–30 с)",sent:"Демо: оқушыға хабарлама дайын, ештеңе жіберілмеді.",aiScore:(s)=>`ЖИ ұпайы: ${s}`,
     unread:"Фото оқылмайды — жақсы жарықта қайта түсіріңіз.",privacy:"Фотолар серверде сақталмайды. Тек ойдан алынған немесе иесіз деректер; оқушылар — кодтар."}
 };
-let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo";
+let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null;
 const $=(id)=>document.getElementById(id), t=(k,...a)=>{const v=T[lang][k];return typeof v==="function"?v(...a):v};
 const store={get(){try{return JSON.parse(localStorage.getItem("tekser.approved")||"[]")}catch{return mem}},set(v){mem=v;try{localStorage.setItem("tekser.approved",JSON.stringify(v))}catch{}}};
 let mem=[];
-const task=()=>tasks[0];
+const task=()=>tasks.find(t=>t.id===tid)||tasks[0];
+const mine=()=>store.get().filter(x=>(x.taskId||tasks[0].id)===task().id);
 const tagName=(id)=>{const e=task().errorTags.find(x=>x.id===id);return e?(lang==="kk"?e.kk:e.ru):id};
 function toast(m){const el=$("toast");el.textContent=m;el.style.display="block";clearTimeout(el._t);el._t=setTimeout(()=>el.style.display="none",3500)}
 
@@ -108,21 +110,24 @@ function renderStatic(){
   $("status").textContent=status.live?t("live",status.model):t("demoOnly");
   $("upNote").textContent=status.live?"":t("noKey");
   $("upLabel").style.opacity=status.live?1:.5;
-  $("taskTitle").textContent=task().title[lang];
-  $("parts").innerHTML=task().parts.map(p=>`<li>${p.text}</li>`).join("");
-  $("demoBtns").innerHTML=demo.works.map(w=>`<button data-w="${w.id}">${t("work")} ${({A:"А",B:"Б",C:"В"})[w.id]} · ${w.student}</button>`).join("");
+  $("taskSel").innerHTML=tasks.map(t=>`<option value="${t.id}" ${t.id===task().id?"selected":""}>${t.title[lang]}</option>`).join("");
+  const vs=task().variants;
+  $("demoHelp").style.display=vs?"none":"";
+  $("taskTitle").textContent=vs?t("variants",Object.keys(vs).join(", ")):"";
+  $("parts").innerHTML=(vs?Object.values(vs)[0]:task().parts).map(p=>`<li>${p.text}</li>`).join("");
+  $("demoBtns").innerHTML=demo.works.filter(w=>w.taskId===task().id).map(w=>`<button data-w="${w.id}">${t("work")} ${({A:"А",B:"Б",C:"В"})[w.id]} · ${w.student}</button>`).join("");
   document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>openDemo(b.dataset.w));
   $("srcDemo").classList.toggle("on",src==="demo");$("srcMine").classList.toggle("on",src==="mine");
   if(cur) renderCheck(); renderMap();
 }
 
-function openDemo(id){const w=demo.works.find(x=>x.id===id);cur={student:w.student,image:null,res:structuredClone(w.result),transcript:w.transcript,approved:false};cur.aiScore=scoreOf(cur.res);renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"})}
+function openDemo(id){const w=demo.works.find(x=>x.id===id);tid=w.taskId;cur={student:w.student,image:null,res:structuredClone(w.result),transcript:w.transcript,approved:false};cur.aiScore=scoreOf(cur.res);renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"})}
 const scoreOf=(r)=>r.descriptors.filter(d=>d.met).length;
 
 function renderCheck(){
   $("checkCard").classList.remove("hidden");
   const r=cur.res, ds=task().descriptors;
-  $("who").textContent=cur.student;$("max").textContent=ds.length;$("score").textContent=scoreOf(r);
+  $("who").textContent=cur.student+(r.variant&&r.variant!==""?` · ${t("variant")} ${r.variant}`:"");$("max").textContent=ds.length;$("score").textContent=scoreOf(r);
   $("prev").classList.toggle("hidden",!cur.image);if(cur.image)$("prev").src=cur.image;
   $("transcript").textContent=r.readable===false?t("unread"):(cur.transcript||r.transcript||"");
   $("descs").innerHTML=ds.map(d=>{const x=r.descriptors.find(y=>y.id===d.id)||{met:false,comment:""};
@@ -135,23 +140,24 @@ function renderCheck(){
 
 $("approve").onclick=()=>{
   const r=cur.res;r.hint=$("hint").value.trim();cur.approved=true;
-  const list=store.get().filter(x=>x.student!==cur.student);
-  list.push({student:cur.student,score:scoreOf(r),aiScore:cur.aiScore,edited:scoreOf(r)!==cur.aiScore,tags:r.error_tags,hint:r.hint,ts:Date.now()});
+  const list=store.get().filter(x=>!(x.student===cur.student&&(x.taskId||tasks[0].id)===task().id));
+  list.push({taskId:task().id,variant:r.variant||"",student:cur.student,score:scoreOf(r),aiScore:cur.aiScore,edited:scoreOf(r)!==cur.aiScore,tags:r.error_tags,hint:r.hint,ts:Date.now()});
   store.set(list);renderCheck();src="mine";renderStatic();toast(t("sent"));
 };
 
 function renderMap(){
   let counts={},n=0;
   if(src==="demo"){counts=demo.demoClass.tagCounts;n=demo.demoClass.students;$("mapInfo").textContent=t("mapDemo",n)}
-  else{const l=store.get();n=l.length;l.forEach(x=>x.tags.forEach(g=>counts[g]=(counts[g]||0)+1));$("mapInfo").textContent=n?t("mapMine",n):t("empty")}
+  else{const l=mine();n=l.length;l.forEach(x=>x.tags.forEach(g=>counts[g]=(counts[g]||0)+1));$("mapInfo").textContent=n?t("mapMine",n):t("empty")}
   const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   $("bars").innerHTML=rows.map(([g,c])=>{const p=Math.round(100*c/n);return `<div class="bar"><span class="t">${tagName(g)}</span><b>${c} · ${p}%</b><div class="track"><div class="fill" style="width:${p}%"></div></div></div>`}).join("");
   $("tips").innerHTML=rows.slice(0,2).map(([g])=>{const e=task().errorTags.find(x=>x.id===g);return e?`<div class="tip"><b>${tagName(g)}</b><br>${e.tip[lang]}</div>`:""}).join("");
 }
+$("taskSel").onchange=(e)=>{tid=e.target.value;cur=null;$("checkCard").classList.add("hidden");src=task().variants?"mine":"demo";renderStatic()};
 $("srcDemo").onclick=()=>{src="demo";renderStatic()};$("srcMine").onclick=()=>{src="mine";renderStatic()};
 $("csv").onclick=()=>{
-  const l=store.get(), ds=task().descriptors.length;
-  const rows=[["Ученик","Балл","Макс","Балл ИИ","Исправлено учителем","Ошибки"],...l.map(x=>[x.student,x.score,ds,x.aiScore,x.edited?"да":"нет",x.tags.map(tagName).join("; ")])];
+  const l=mine(), ds=task().descriptors.length;
+  const rows=[["Ученик","Вариант","Балл","Макс","Балл ИИ","Исправлено учителем","Ошибки"],...l.map(x=>[x.student,x.variant||"",x.score,ds,x.aiScore,x.edited?"да":"нет",x.tags.map(tagName).join("; ")])];
   const csv="﻿"+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="tekser-bally.csv";a.click();
 };
@@ -159,11 +165,11 @@ document.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{lang=b.dataset.l
 
 function shrink(file){return new Promise((ok,no)=>{const img=new Image();img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))};img.onerror=no;img.src=URL.createObjectURL(file)})}
 $("file").onchange=async(e)=>{
-  const f=e.target.files[0];e.target.value="";if(!f)return;if(!status.live){toast(t("noKey"));return}
-  const image=await shrink(f);const n=store.get().length+demo.works.length+1;
+  const fs=[...e.target.files].slice(0,4);e.target.value="";if(!fs.length)return;if(!status.live){toast(t("noKey"));return}
+  const images=[];for(const f of fs)images.push(await shrink(f));const image=images[0];const n=mine().length+(task().variants?1:demo.works.length+1);
   cur={student:"У-"+String(n).padStart(2,"0"),image,res:{readable:true,transcript:"",descriptors:[],first_error:null,hint:"",error_tags:[]},approved:true};
   renderCheck();$("transcript").textContent=t("checking");$("checkCard").scrollIntoView({behavior:"smooth"});
-  try{const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId:task().id,image,lang})});
+  try{const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId:task().id,images,lang})});
     const d=await r.json();if(!r.ok)throw new Error(d.error);cur.res=d;cur.transcript=d.transcript;cur.aiScore=scoreOf(d);cur.approved=false;renderCheck();}
   catch(err){$("transcript").textContent=err.message}
 };
