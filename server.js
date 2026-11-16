@@ -15,6 +15,7 @@ app.use(express.static(new URL("./public", import.meta.url).pathname));
 
 app.get("/api/status", (_req, res) => res.json({ live: Boolean(KEY), model: KEY ? MODEL : null, limitPerHour: LIMIT }));
 app.get("/api/tasks", (_req, res) => res.json(tasks));
+app.get("/api/schedule", (_req, res) => res.sendFile(new URL("./data/schedule.json", import.meta.url).pathname));
 app.get("/api/demo", (_req, res) => res.sendFile(new URL("./data/demo.json", import.meta.url).pathname));
 
 // Простой лимит: не больше LIMIT проверок в час с одного IP.
