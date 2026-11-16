@@ -30,6 +30,8 @@ textarea{width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;display:none;max-width:90%}
 img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(--line)}
 .trust-stats{display:flex;flex-wrap:wrap;gap:8px 20px;margin:12px 0;padding:10px;background:var(--soft);border-radius:8px;font-size:14px}.trust-stats>div{flex:1 1 240px}.trust-stats small{display:block;color:var(--mut);font-size:12px}
+.screen{display:grid;gap:14px;min-width:0}.week{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.lesson-button{display:flex;flex-direction:column;gap:8px;text-align:left;height:100%;overflow-wrap:anywhere}.lesson-button:hover{border-color:var(--acc);background:var(--soft)}.lesson-button time{font-size:13px;color:var(--mut)}a.btn{display:inline-block;color:var(--acc);font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px 12px;text-decoration:none}.lesson-assessment{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+@media(max-width:600px){.week{grid-template-columns:1fr}}
 .hidden{display:none}
 </style>
 </head>
@@ -40,6 +42,27 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
     <span class="lang row"><button data-l="ru" class="on">РУС</button><button data-l="kk">ҚАЗ</button></span></div>
 </header>
 <main>
+  <div id="scheduleScreen" class="screen">
+    <section class="card">
+      <h2 data-i="desk"></h2>
+      <p class="mut" data-i="scheduleTitle"></p>
+      <div id="weekGrid" class="week"></div>
+    </section>
+  </div>
+  <div><button id="backSchedule" class="hidden" data-i="backSchedule"></button></div>
+  <section id="lessonScreen" class="card hidden">
+    <p id="lessonDate" class="mut"></p>
+    <h2 id="lessonTopic"></h2>
+    <b data-i="goal"></b>
+    <p id="lessonGoal"></p>
+    <a id="lessonSlides" class="btn" href="#" data-i="slides"></a>
+    <div id="lessonAssessment" class="lesson-assessment hidden">
+      <b data-i="assessment"></b>
+      <p id="lessonTask"></p>
+      <button id="startAssessment" class="primary" data-i="startAssessment"></button>
+    </div>
+  </section>
+  <div id="assessmentScreen" class="screen hidden">
   <section class="card">
     <h2 data-i="s1"></h2>
     <select id="taskSel" style="font:inherit;padding:6px;border-radius:8px;border:1px solid var(--line);width:100%;margin-bottom:6px"></select>
@@ -78,13 +101,14 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
     <h3 style="font-size:15px;margin:14px 0 0" data-i="next"></h3>
     <div id="tips"></div>
   </section>
+  </div>
   <p class="mut" style="text-align:center" data-i="privacy"></p>
 </main>
 <div class="toast" id="toast"></div>
 
 <script>
 const T = {
-  ru:{agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
+  ru:{desk:"Рабочий стол учителя",scheduleTitle:"Расписание · 7«А» · Алгебра",backSchedule:"← Расписание",goal:"Цель урока",slides:"Презентация",assessment:"Задание",startAssessment:"Проверить БЖБ/СОР",days:{mon:"Понедельник",tue:"Вторник",wed:"Среда",thu:"Четверг",fri:"Пятница"},agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
     demoHelp:"Демо: откройте готовую работу (вымышленные ученики) или загрузите своё фото.",work:"Работа",upload:"📷 Загрузить фото работы (1–4 страницы)",variants:(v)=>`Варианты ${v} — номер варианта ИИ читает с листа сам.`,variant:"вариант",
     hintLbl:"Подсказка ученику (по первой ошибке, без ответа) — можно править:",approve:"✓ Утвердить",firstErr:"Первая ошибка",noErr:"Ошибок нет",
     srcDemo:"Демо-класс",srcMine:"Мои утверждённые",csv:"⬇ Баллы в CSV",next:"Что разобрать на следующем уроке",
@@ -92,7 +116,7 @@ const T = {
     empty:"Пока нет утверждённых работ.",live:(m)=>`ИИ: ${m}`,demoOnly:"Демо-режим",noKey:"Загрузка своих фото выключена (нет ключа API).",
     checking:"ИИ проверяет фото… (10–30 с)",sent:"Демо: сообщение ученику сформировано, ничего не отправлено.",aiScore:(s)=>`Балл ИИ: ${s}`,
     unread:"Фото нечитаемо — переснимите при хорошем свете.",privacy:"Фото не сохраняются на сервере. Только вымышленные или обезличенные данные; ученики — коды."},
-  kk:{agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
+  kk:{desk:"Мұғалімнің жұмыс үстелі",scheduleTitle:"Сабақ кестесі · 7«А» · Алгебра",backSchedule:"← Сабақ кестесі",goal:"Сабақтың мақсаты",slides:"Презентация",assessment:"Тапсырма",startAssessment:"БЖБ тексеру",days:{mon:"Дүйсенбі",tue:"Сейсенбі",wed:"Сәрсенбі",thu:"Бейсенбі",fri:"Жұма"},agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
     demoHelp:"Демо: дайын жұмысты ашыңыз (ойдан алынған оқушылар) немесе өз фотоңызды жүктеңіз.",work:"Жұмыс",upload:"📷 Жұмыс фотосын жүктеу (1–4 бет)",variants:(v)=>`Нұсқалар ${v} — нұсқа нөмірін ЖИ парақтан өзі оқиды.`,variant:"нұсқа",
     hintLbl:"Оқушыға кеңес (бірінші қате бойынша, жауапсыз) — түзетуге болады:",approve:"✓ Бекіту",firstErr:"Бірінші қате",noErr:"Қате жоқ",
     srcDemo:"Демо-сынып",srcMine:"Менің бекіткендерім",csv:"⬇ Ұпайлар CSV",next:"Келесі сабақта нені талдау керек",
@@ -101,7 +125,7 @@ const T = {
     checking:"ЖИ фотоны тексеріп жатыр… (10–30 с)",sent:"Демо: оқушыға хабарлама дайын, ештеңе жіберілмеді.",aiScore:(s)=>`ЖИ ұпайы: ${s}`,
     unread:"Фото оқылмайды — жақсы жарықта қайта түсіріңіз.",privacy:"Фотолар серверде сақталмайды. Тек ойдан алынған немесе иесіз деректер; оқушылар — кодтар."}
 };
-let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null;
+let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null, schedule=[], lesson=null, screen="schedule";
 const $=(id)=>document.getElementById(id), t=(k,...a)=>{const v=T[lang][k];return typeof v==="function"?v(...a):v};
 const store={get(){try{return JSON.parse(localStorage.getItem("tekser.approved")||"[]")}catch{return mem}},set(v){mem=v;try{localStorage.setItem("tekser.approved",JSON.stringify(v))}catch{}}};
 let mem=[];
@@ -110,7 +134,45 @@ const mine=()=>store.get().filter(x=>(x.taskId||tasks[0].id)===task().id);
 const tagName=(id)=>{const e=task().errorTags.find(x=>x.id===id);return e?(lang==="kk"?e.kk:e.ru):id};
 function toast(m){const el=$("toast");el.textContent=m;el.style.display="block";clearTimeout(el._t);el._t=setTimeout(()=>el.style.display="none",3500)}
 
+function showScreen(next){
+  screen=next;
+  $("scheduleScreen").classList.toggle("hidden",screen!=="schedule");
+  $("lessonScreen").classList.toggle("hidden",screen!=="lesson");
+  $("assessmentScreen").classList.toggle("hidden",screen!=="assessment");
+  $("backSchedule").classList.toggle("hidden",screen==="schedule");
+  window.scrollTo(0,0);
+}
+function renderSchedule(){
+  const formatDate=(value)=>new Intl.DateTimeFormat(lang==="kk"?"kk-KZ":"ru-RU",{day:"numeric",month:"long"}).format(new Date(value+"T12:00:00"));
+  $("weekGrid").replaceChildren(...schedule.map((item,index)=>{
+    const button=document.createElement("button");
+    button.className="lesson-button";button.dataset.lesson=index;
+    const day=document.createElement("b");day.textContent=t("days")[item.day];
+    const date=document.createElement("time");date.dateTime=item.date;date.textContent=formatDate(item.date);
+    const topic=document.createElement("span");topic.textContent=item.topic[lang];
+    button.append(day,date,topic);
+    button.onclick=()=>{lesson=item;renderSchedule();showScreen("lesson")};
+    return button;
+  }));
+  if(!lesson)return;
+  $("lessonDate").textContent=t("days")[lesson.day]+" · "+formatDate(lesson.date);
+  $("lessonTopic").textContent=lesson.topic[lang];
+  $("lessonGoal").textContent=lesson.goal[lang];
+  $("lessonSlides").href=lesson.slides;
+  const assessment=tasks.find(item=>item.id===lesson.assessment);
+  $("lessonAssessment").classList.toggle("hidden",!assessment);
+  $("lessonTask").textContent=assessment?assessment.title[lang]:"";
+}
+$("backSchedule").onclick=()=>showScreen("schedule");
+$("startAssessment").onclick=()=>{
+  if(!lesson?.assessment)return;
+  $("taskSel").value=lesson.assessment;
+  $("taskSel").dispatchEvent(new Event("change"));
+  showScreen("assessment");
+};
+
 function renderStatic(){
+  renderSchedule();
   document.querySelectorAll("[data-i]").forEach(el=>el.textContent=t(el.dataset.i));
   document.documentElement.lang=lang==="kk"?"kk":"ru";
   $("status").textContent=status.live?t("live",status.model):t("demoOnly");
@@ -184,8 +246,8 @@ $("file").onchange=async(e)=>{
   catch(err){$("transcript").textContent=err.message}
 };
 
-Promise.all([fetch("/api/tasks").then(r=>r.json()),fetch("/api/demo").then(r=>r.json()),fetch("/api/status").then(r=>r.json())])
-  .then(([a,b,c])=>{tasks=a;demo=b;status=c;renderStatic()});
+Promise.all([fetch("/api/tasks").then(r=>r.json()),fetch("/api/demo").then(r=>r.json()),fetch("/api/status").then(r=>r.json()),fetch("/api/schedule").then(r=>r.json())])
+  .then(([a,b,c,d])=>{tasks=a;demo=b;status=c;schedule=d;renderStatic();showScreen("schedule")});
 </script>
 </body>
 </html>
