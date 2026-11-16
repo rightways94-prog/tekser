@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
 <title>Тексер — проверка БЖБ/ТЖБ по дескрипторам</title>
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--ink:#1d2330;--mut:#667085;--line:#e4e7ec;--acc:#2f5bd3;--ok:#1f8a4c;--bad:#c4372f;--soft:#eef2fd}
@@ -28,6 +29,7 @@ textarea{width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;
 .tip{background:var(--soft);border-radius:8px;padding:10px;margin-top:8px}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;display:none;max-width:90%}
 img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(--line)}
+.trust-stats{display:flex;flex-wrap:wrap;gap:8px 20px;margin:12px 0;padding:10px;background:var(--soft);border-radius:8px;font-size:14px}.trust-stats>div{flex:1 1 240px}.trust-stats small{display:block;color:var(--mut);font-size:12px}
 .hidden{display:none}
 </style>
 </head>
@@ -67,6 +69,10 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
     <h2 data-i="s3"></h2>
     <div class="row"><button id="srcDemo" class="on" data-i="srcDemo"></button><button id="srcMine" data-i="srcMine"></button>
       <button id="csv" data-i="csv"></button></div>
+    <div id="trustStats" class="trust-stats hidden" aria-live="polite">
+      <div id="agreement"></div>
+      <div><b id="savedTime"></b><small id="timeEstimate" data-i="timeEstimate"></small></div>
+    </div>
     <p class="mut" id="mapInfo"></p>
     <div id="bars"></div>
     <h3 style="font-size:15px;margin:14px 0 0" data-i="next"></h3>
@@ -78,7 +84,7 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 
 <script>
 const T = {
-  ru:{sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
+  ru:{agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
     demoHelp:"Демо: откройте готовую работу (вымышленные ученики) или загрузите своё фото.",work:"Работа",upload:"📷 Загрузить фото работы (1–4 страницы)",variants:(v)=>`Варианты ${v} — номер варианта ИИ читает с листа сам.`,variant:"вариант",
     hintLbl:"Подсказка ученику (по первой ошибке, без ответа) — можно править:",approve:"✓ Утвердить",firstErr:"Первая ошибка",noErr:"Ошибок нет",
     srcDemo:"Демо-класс",srcMine:"Мои утверждённые",csv:"⬇ Баллы в CSV",next:"Что разобрать на следующем уроке",
@@ -86,7 +92,7 @@ const T = {
     empty:"Пока нет утверждённых работ.",live:(m)=>`ИИ: ${m}`,demoOnly:"Демо-режим",noKey:"Загрузка своих фото выключена (нет ключа API).",
     checking:"ИИ проверяет фото… (10–30 с)",sent:"Демо: сообщение ученику сформировано, ничего не отправлено.",aiScore:(s)=>`Балл ИИ: ${s}`,
     unread:"Фото нечитаемо — переснимите при хорошем свете.",privacy:"Фото не сохраняются на сервере. Только вымышленные или обезличенные данные; ученики — коды."},
-  kk:{sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
+  kk:{agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
     demoHelp:"Демо: дайын жұмысты ашыңыз (ойдан алынған оқушылар) немесе өз фотоңызды жүктеңіз.",work:"Жұмыс",upload:"📷 Жұмыс фотосын жүктеу (1–4 бет)",variants:(v)=>`Нұсқалар ${v} — нұсқа нөмірін ЖИ парақтан өзі оқиды.`,variant:"нұсқа",
     hintLbl:"Оқушыға кеңес (бірінші қате бойынша, жауапсыз) — түзетуге болады:",approve:"✓ Бекіту",firstErr:"Бірінші қате",noErr:"Қате жоқ",
     srcDemo:"Демо-сынып",srcMine:"Менің бекіткендерім",csv:"⬇ Ұпайлар CSV",next:"Келесі сабақта нені талдау керек",
@@ -121,7 +127,7 @@ function renderStatic(){
   if(cur) renderCheck(); renderMap();
 }
 
-function openDemo(id){const w=demo.works.find(x=>x.id===id);tid=w.taskId;cur={student:w.student,image:null,res:structuredClone(w.result),transcript:w.transcript,approved:false};cur.aiScore=scoreOf(cur.res);renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"})}
+function openDemo(id){const w=demo.works.find(x=>x.id===id);tid=w.taskId;cur={student:w.student,image:null,res:structuredClone(w.result),transcript:w.transcript,approved:false};cur.aiScore=scoreOf(cur.res);cur.aiHint=cur.res.hint;cur.aiDescriptors=structuredClone(cur.res.descriptors);renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"})}
 const scoreOf=(r)=>r.descriptors.filter(d=>d.met).length;
 
 function renderCheck(){
@@ -139,13 +145,17 @@ function renderCheck(){
 }
 
 $("approve").onclick=()=>{
-  const r=cur.res;r.hint=$("hint").value.trim();cur.approved=true;
+  const r=cur.res, hintEdited=$("hint").value!==cur.aiHint;r.hint=$("hint").value.trim();cur.approved=true;
   const list=store.get().filter(x=>!(x.student===cur.student&&(x.taskId||tasks[0].id)===task().id));
-  list.push({taskId:task().id,variant:r.variant||"",student:cur.student,score:scoreOf(r),aiScore:cur.aiScore,edited:scoreOf(r)!==cur.aiScore,tags:r.error_tags,hint:r.hint,ts:Date.now()});
+  list.push({taskId:task().id,variant:r.variant||"",student:cur.student,score:scoreOf(r),aiScore:cur.aiScore,edited:r.descriptors.some(d=>d.met!==cur.aiDescriptors.find(x=>x.id===d.id)?.met)||hintEdited,tags:r.error_tags,hint:r.hint,ts:Date.now()});
   store.set(list);renderCheck();src="mine";renderStatic();toast(t("sent"));
 };
 
 function renderMap(){
+  const approved=mine(), total=approved.length, unchanged=approved.filter(w=>w.edited===false).length;
+  $("trustStats").classList.toggle("hidden",total===0);
+  $("agreement").textContent=total?t("agreement",Math.round(100*unchanged/total),unchanged,total):"";
+  $("savedTime").textContent=total?t("savedTime",total*4):"";
   let counts={},n=0;
   if(src==="demo"){counts=demo.demoClass.tagCounts;n=demo.demoClass.students;$("mapInfo").textContent=t("mapDemo",n)}
   else{const l=mine();n=l.length;l.forEach(x=>x.tags.forEach(g=>counts[g]=(counts[g]||0)+1));$("mapInfo").textContent=n?t("mapMine",n):t("empty")}
@@ -170,7 +180,7 @@ $("file").onchange=async(e)=>{
   cur={student:"У-"+String(n).padStart(2,"0"),image,res:{readable:true,transcript:"",descriptors:[],first_error:null,hint:"",error_tags:[]},approved:true};
   renderCheck();$("transcript").textContent=t("checking");$("checkCard").scrollIntoView({behavior:"smooth"});
   try{const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId:task().id,images,lang})});
-    const d=await r.json();if(!r.ok)throw new Error(d.error);cur.res=d;cur.transcript=d.transcript;cur.aiScore=scoreOf(d);cur.approved=false;renderCheck();}
+    const d=await r.json();if(!r.ok)throw new Error(d.error);cur.res=d;cur.transcript=d.transcript;cur.aiScore=scoreOf(d);cur.aiHint=d.hint;cur.aiDescriptors=structuredClone(d.descriptors);cur.approved=false;renderCheck();}
   catch(err){$("transcript").textContent=err.message}
 };
 
