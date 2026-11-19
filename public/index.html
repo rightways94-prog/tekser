@@ -156,6 +156,12 @@ const mine=()=>store.get().filter(x=>(x.taskId||tasks[0].id)===task().id);
 const tagName=(id)=>{const e=task().errorTags.find(x=>x.id===id);return e?(lang==="kk"?e.kk:e.ru):id};
 function toast(m){const el=$("toast");el.textContent=m;el.style.display="block";clearTimeout(el._t);el._t=setTimeout(()=>el.style.display="none",3500)}
 
+const quickStart=document.querySelector(".quick-start");
+try{quickStart.open=localStorage.getItem("tekser.quickStart.open")==="true"}catch{}
+quickStart.addEventListener("toggle",()=>{
+  try{localStorage.setItem("tekser.quickStart.open",String(quickStart.open))}catch{}
+});
+
 function showScreen(next){
   screen=next;
   $("scheduleScreen").classList.toggle("hidden",screen!=="schedule");
