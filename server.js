@@ -1,6 +1,7 @@
 // Тексер — сервер. Проверка фото работы по дескрипторам через OpenAI Responses API.
 import express from "express";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const PORT = process.env.PORT || 3000;
 const KEY = process.env.OPENAI_API_KEY || "";
@@ -11,12 +12,29 @@ const tasks = JSON.parse(readFileSync(new URL("./data/tasks.json", import.meta.u
 const app = express();
 app.set("trust proxy", 1); // за Caddy: настоящий IP для лимита
 app.use(express.json({ limit: "20mb" }));
-app.use(express.static(new URL("./public", import.meta.url).pathname));
+app.use(express.static(fileURLToPath(new URL("./public", import.meta.url))));
 
 app.get("/api/status", (_req, res) => res.json({ live: Boolean(KEY), model: KEY ? MODEL : null, limitPerHour: LIMIT }));
 app.get("/api/tasks", (_req, res) => res.json(tasks));
-app.get("/api/schedule", (_req, res) => res.sendFile(new URL("./data/schedule.json", import.meta.url).pathname));
-app.get("/api/demo", (_req, res) => res.sendFile(new URL("./data/demo.json", import.meta.url).pathname));
+app.get("/api/schedule", (_req, res) => res.sendFile(fileURLToPath(new URL("./data/schedule.json", import.meta.url))));
+app.get("/api/demo", (_req, res) => res.sendFile(fileURLToPath(new URL("./data/demo.json", import.meta.url))));
+
+const T = {
+  ru: {
+    noKey: "Проверка фото выключена: нет ключа API. Работает демо-режим.",
+    missing: "Нужны задание и фото.",
+    limit: (n) => `Лимит: ${n} проверок в час. Попробуйте позже или используйте демо-работы.`,
+    upstream: "Ошибка OpenAI. Попробуйте позже.",
+    failed: "Не удалось проверить фото. Попробуйте ещё раз.",
+  },
+  kk: {
+    noKey: "Фотоны тексеру өшірулі: API кілті жоқ. Демо режимі жұмыс істейді.",
+    missing: "Тапсырма мен фото қажет.",
+    limit: (n) => `Шектеу: сағатына ${n} тексеру. Кейінірек қайталаңыз немесе демо жұмыстарды пайдаланыңыз.`,
+    upstream: "OpenAI қатесі. Кейінірек қайталаңыз.",
+    failed: "Фотоны тексеру мүмкін болмады. Қайта көріңіз.",
+  },
+};
 
 // Простой лимит: не больше LIMIT проверок в час с одного IP.
 const hits = new Map();
@@ -92,12 +110,13 @@ function outputText(r) {
 }
 
 app.post("/api/check", async (req, res) => {
-  if (!KEY) return res.status(503).json({ error: "Проверка своих фото выключена: нет ключа API. Работает демо-режим." });
+  const messages = T[req.body?.lang === "kk" ? "kk" : "ru"];
+  if (!KEY) return res.status(503).json({ error: messages.noKey });
   const { taskId, image, lang } = req.body || {};
   const images = (Array.isArray(req.body?.images) ? req.body.images : [image]).filter((x) => typeof x === "string" && x.startsWith("data:image/")).slice(0, 4);
   const task = tasks.find((t) => t.id === taskId);
-  if (!task || !images.length) return res.status(400).json({ error: "Нужны задание и фото." });
-  if (!allowed(req.ip)) return res.status(429).json({ error: `Лимит: ${LIMIT} фото в час. Попробуйте позже или используйте демо-работы.` });
+  if (!task || !images.length) return res.status(400).json({ error: messages.missing });
+  if (!allowed(req.ip)) return res.status(429).json({ error: messages.limit(LIMIT) });
   try {
     const r = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -112,11 +131,11 @@ app.post("/api/check", async (req, res) => {
       }),
     });
     const data = await r.json();
-    if (!r.ok) return res.status(502).json({ error: data?.error?.message || "Ошибка OpenAI" });
+    if (!r.ok) return res.status(502).json({ error: messages.upstream });
     const result = JSON.parse(outputText(data));
     res.json({ ...result, model: MODEL }); // фото нигде не сохраняется
-  } catch (e) {
-    res.status(500).json({ error: "Не удалось проверить: " + e.message });
+  } catch {
+    res.status(500).json({ error: messages.failed });
   }
 });
 

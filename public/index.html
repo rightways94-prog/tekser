@@ -33,11 +33,16 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 .screen{display:grid;gap:14px;min-width:0}.week{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.lesson-button{display:flex;flex-direction:column;gap:8px;text-align:left;height:100%;overflow-wrap:anywhere}.lesson-button:hover{border-color:var(--acc);background:var(--soft)}.lesson-button time{font-size:13px;color:var(--mut)}a.btn{display:inline-block;color:var(--acc);font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px 12px;text-decoration:none}.lesson-assessment{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
 @media(max-width:600px){.week{grid-template-columns:1fr}}
 .hidden{display:none}
+.brand{flex:1;min-width:0}.accuracy{font-size:12px;line-height:16px;color:var(--mut);margin:4px 0 0;text-wrap:pretty}
+.quick-start{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:8px}.quick-start summary{cursor:pointer;font-weight:600}.quick-start p{margin:8px 0 0;overflow-wrap:anywhere}
+.sample{margin-top:12px}.sample button{max-width:100%;text-align:left;white-space:normal}.sample small{display:block;margin-top:4px;font-size:12px;line-height:16px;color:var(--mut)}
+[hidden]{display:none!important}
+@media(max-width:600px){header{flex-wrap:wrap}.brand{flex-basis:100%}header>.row{width:100%;justify-content:space-between}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Тексер <small data-i="sub"></small></h1>
+  <div class="brand"><h1>Тексер <small data-i="sub"></small></h1><p class="accuracy" data-i="accuracy"></p></div>
   <div class="row"><span id="status" class="badge"></span>
     <span class="lang row"><button data-l="ru" class="on">РУС</button><button data-l="kk">ҚАЗ</button></span></div>
 </header>
@@ -46,6 +51,10 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
     <section class="card">
       <h2 data-i="desk"></h2>
       <p class="mut" data-i="scheduleTitle"></p>
+      <details class="quick-start">
+        <summary data-i="quickStart"></summary>
+        <p class="mut" data-i="quickSteps"></p>
+      </details>
       <div id="weekGrid" class="week"></div>
     </section>
   </div>
@@ -70,6 +79,10 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
     <ol id="parts" class="parts"></ol>
     <p class="mut" data-i="demoHelp" id="demoHelp"></p>
     <div class="row" id="demoBtns"></div>
+    <div id="sampleBox" class="sample" hidden>
+      <button id="samplePhoto" data-i="samplePhoto"></button>
+      <small data-i="sampleNote"></small>
+    </div>
     <div class="row" style="margin-top:10px">
       <label class="btn primary" id="upLabel"><span data-i="upload"></span><input id="file" type="file" accept="image/*" multiple hidden></label>
       <span class="mut" id="upNote"></span>
@@ -108,7 +121,12 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 
 <script>
 const T = {
+  // Код вымышленного ученика одинаков в обоих языках.
   ru:{desk:"Рабочий стол учителя",scheduleTitle:"Расписание · 7«А» · Алгебра",backSchedule:"← Расписание",goal:"Цель урока",slides:"Презентация",assessment:"Задание",startAssessment:"Проверить БЖБ/СОР",days:{mon:"Понедельник",tue:"Вторник",wed:"Среда",thu:"Четверг",fri:"Пятница"},agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
+    accuracy:"Точность на тестовой работе: 20 из 20 дескрипторов совпали с оценкой учителя",
+    quickStart:"Как попробовать за 1 минуту",quickSteps:"Среда → Проверить → Работа А (или Пятница → пример фото) → ✓ Утвердить → Карта ошибок.",
+    samplePhoto:"🧪 Проверить пример фото (вымышленный ученик, 2 стр.)",sampleNote:"Настоящая проверка ИИ, ~15 сек",sampleStudent:"Пример",
+    photoError:"Не удалось загрузить или проверить фото. Попробуйте ещё раз.",
     demoHelp:"Демо: откройте готовую работу (вымышленные ученики) или загрузите своё фото.",work:"Работа",upload:"📷 Загрузить фото работы (1–4 страницы)",variants:(v)=>`Варианты ${v} — номер варианта ИИ читает с листа сам.`,variant:"вариант",
     hintLbl:"Подсказка ученику (по первой ошибке, без ответа) — можно править:",approve:"✓ Утвердить",firstErr:"Первая ошибка",noErr:"Ошибок нет",
     srcDemo:"Демо-класс",srcMine:"Мои утверждённые",csv:"⬇ Баллы в CSV",next:"Что разобрать на следующем уроке",
@@ -117,6 +135,10 @@ const T = {
     checking:"ИИ проверяет фото… (10–30 с)",sent:"Демо: сообщение ученику сформировано, ничего не отправлено.",aiScore:(s)=>`Балл ИИ: ${s}`,
     unread:"Фото нечитаемо — переснимите при хорошем свете.",privacy:"Фото не сохраняются на сервере. Только вымышленные или обезличенные данные; ученики — коды."},
   kk:{desk:"Мұғалімнің жұмыс үстелі",scheduleTitle:"Сабақ кестесі · 7«А» · Алгебра",backSchedule:"← Сабақ кестесі",goal:"Сабақтың мақсаты",slides:"Презентация",assessment:"Тапсырма",startAssessment:"БЖБ тексеру",days:{mon:"Дүйсенбі",tue:"Сейсенбі",wed:"Сәрсенбі",thu:"Бейсенбі",fri:"Жұма"},agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
+    accuracy:"Сынақ жұмысындағы дәлдік: 20 дескриптордың 20-сы мұғалімнің бағасымен сәйкес келді",
+    quickStart:"1 минутта қалай сынап көруге болады",quickSteps:"Сәрсенбі → Тексеру → А жұмысы (немесе Жұма → фото үлгісі) → ✓ Бекіту → Қателер картасы.",
+    samplePhoto:"🧪 Фото үлгісін тексеру (ойдан алынған оқушы, 2 бет)",sampleNote:"ЖИ арқылы нақты тексеру, ~15 сек",sampleStudent:"Пример",
+    photoError:"Фотоны жүктеу немесе тексеру мүмкін болмады. Қайта көріңіз.",
     demoHelp:"Демо: дайын жұмысты ашыңыз (ойдан алынған оқушылар) немесе өз фотоңызды жүктеңіз.",work:"Жұмыс",upload:"📷 Жұмыс фотосын жүктеу (1–4 бет)",variants:(v)=>`Нұсқалар ${v} — нұсқа нөмірін ЖИ парақтан өзі оқиды.`,variant:"нұсқа",
     hintLbl:"Оқушыға кеңес (бірінші қате бойынша, жауапсыз) — түзетуге болады:",approve:"✓ Бекіту",firstErr:"Бірінші қате",noErr:"Қате жоқ",
     srcDemo:"Демо-сынып",srcMine:"Менің бекіткендерім",csv:"⬇ Ұпайлар CSV",next:"Келесі сабақта нені талдау керек",
@@ -125,7 +147,7 @@ const T = {
     checking:"ЖИ фотоны тексеріп жатыр… (10–30 с)",sent:"Демо: оқушыға хабарлама дайын, ештеңе жіберілмеді.",aiScore:(s)=>`ЖИ ұпайы: ${s}`,
     unread:"Фото оқылмайды — жақсы жарықта қайта түсіріңіз.",privacy:"Фотолар серверде сақталмайды. Тек ойдан алынған немесе иесіз деректер; оқушылар — кодтар."}
 };
-let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null, schedule=[], lesson=null, screen="schedule";
+let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null, schedule=[], lesson=null, screen="schedule", checking=false;
 const $=(id)=>document.getElementById(id), t=(k,...a)=>{const v=T[lang][k];return typeof v==="function"?v(...a):v};
 const store={get(){try{return JSON.parse(localStorage.getItem("tekser.approved")||"[]")}catch{return mem}},set(v){mem=v;try{localStorage.setItem("tekser.approved",JSON.stringify(v))}catch{}}};
 let mem=[];
@@ -158,7 +180,10 @@ function renderSchedule(){
   $("lessonDate").textContent=t("days")[lesson.day]+" · "+formatDate(lesson.date);
   $("lessonTopic").textContent=lesson.topic[lang];
   $("lessonGoal").textContent=lesson.goal[lang];
-  $("lessonSlides").href=lesson.slides;
+  const slides=(lesson.slides||"").trim();
+  $("lessonSlides").hidden=!slides||slides==="#";
+  if(slides&&slides!=="#")$("lessonSlides").href=slides;
+  else $("lessonSlides").removeAttribute("href");
   const assessment=tasks.find(item=>item.id===lesson.assessment);
   $("lessonAssessment").classList.toggle("hidden",!assessment);
   $("lessonTask").textContent=assessment?assessment.title[lang]:"";
@@ -185,6 +210,8 @@ function renderStatic(){
   $("parts").innerHTML=(vs?Object.values(vs)[0]:task().parts).map(p=>`<li>${p.text}</li>`).join("");
   $("demoBtns").innerHTML=demo.works.filter(w=>w.taskId===task().id).map(w=>`<button data-w="${w.id}">${t("work")} ${({A:"А",B:"Б",C:"В"})[w.id]} · ${w.student}</button>`).join("");
   document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>openDemo(b.dataset.w));
+  $("sampleBox").hidden=task().id!=="alg7-sa1-exponents";
+  renderUploadState();
   $("srcDemo").classList.toggle("on",src==="demo");$("srcMine").classList.toggle("on",src==="mine");
   if(cur) renderCheck(); renderMap();
 }
@@ -195,15 +222,16 @@ const scoreOf=(r)=>r.descriptors.filter(d=>d.met).length;
 function renderCheck(){
   $("checkCard").classList.remove("hidden");
   const r=cur.res, ds=task().descriptors;
-  $("who").textContent=cur.student+(r.variant&&r.variant!==""?` · ${t("variant")} ${r.variant}`:"");$("max").textContent=ds.length;$("score").textContent=scoreOf(r);
+  $("who").textContent=cur.student+(r.variant&&r.variant!==""?` · ${t("variant")} ${r.variant}`:"");$("max").textContent=ds.length;$("score").textContent=cur.pending||cur.failed?"…":scoreOf(r);
   $("prev").classList.toggle("hidden",!cur.image);if(cur.image)$("prev").src=cur.image;
-  $("transcript").textContent=r.readable===false?t("unread"):(cur.transcript||r.transcript||"");
+  $("transcript").textContent=cur.pending?t("checking"):(r.readable===false?t("unread"):(cur.transcript||r.transcript||""));
   $("descs").innerHTML=ds.map(d=>{const x=r.descriptors.find(y=>y.id===d.id)||{met:false,comment:""};
     return `<label class="desc"><input type="checkbox" data-d="${d.id}" ${x.met?"checked":""} ${cur.approved?"disabled":""}><span><b>${d.id}</b> ${lang==="kk"?d.kk:d.text}<br><span class="c">${x.comment||""}</span></span></label>`}).join("");
   document.querySelectorAll("[data-d]").forEach(c=>c.onchange=()=>{r.descriptors.find(y=>y.id===c.dataset.d).met=c.checked;$("score").textContent=scoreOf(r)});
+  $("errBox").hidden=Boolean(cur.pending||cur.failed);
   $("errBox").innerHTML=r.first_error?`<div class="err"><b>${t("firstErr")} (${r.first_error.part}):</b> ${r.first_error.text}${r.error_tags.length?`<br><span class="mut">${r.error_tags.map(tagName).join(" · ")}</span>`:""}</div>`:`<div class="okbox">${t("noErr")}</div>`;
   $("hint").value=r.hint;$("hint").disabled=cur.approved;
-  $("approve").disabled=cur.approved;$("aiNote").textContent=t("aiScore",cur.aiScore);
+  $("approve").disabled=cur.approved;$("aiNote").textContent=cur.pending||cur.failed?"":t("aiScore",cur.aiScore);
 }
 
 $("approve").onclick=()=>{
@@ -235,16 +263,40 @@ $("csv").onclick=()=>{
 };
 document.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{lang=b.dataset.l;document.querySelectorAll("[data-l]").forEach(x=>x.classList.toggle("on",x===b));renderStatic()});
 
-function shrink(file){return new Promise((ok,no)=>{const img=new Image();img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))};img.onerror=no;img.src=URL.createObjectURL(file)})}
-$("file").onchange=async(e)=>{
-  const fs=[...e.target.files].slice(0,4);e.target.value="";if(!fs.length)return;if(!status.live){toast(t("noKey"));return}
-  const images=[];for(const f of fs)images.push(await shrink(f));const image=images[0];const n=mine().length+(task().variants?1:demo.works.length+1);
-  cur={student:"У-"+String(n).padStart(2,"0"),image,res:{readable:true,transcript:"",descriptors:[],first_error:null,hint:"",error_tags:[]},approved:true};
-  renderCheck();$("transcript").textContent=t("checking");$("checkCard").scrollIntoView({behavior:"smooth"});
-  try{const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId:task().id,images,lang})});
-    const d=await r.json();if(!r.ok)throw new Error(d.error);cur.res=d;cur.transcript=d.transcript;cur.aiScore=scoreOf(d);cur.aiHint=d.hint;cur.aiDescriptors=structuredClone(d.descriptors);cur.approved=false;renderCheck();}
-  catch(err){$("transcript").textContent=err.message}
+function shrink(file){return new Promise((ok,no)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{URL.revokeObjectURL(url);try{const k=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))}catch(err){no(err)}};img.onerror=()=>{URL.revokeObjectURL(url);no(new Error(t("photoError")))};img.src=url})}
+function renderUploadState(){
+  $("samplePhoto").disabled=checking||!status.live;
+  $("file").disabled=checking;
+  $("upLabel").setAttribute("aria-busy",String(checking));
+  $("samplePhoto").setAttribute("aria-busy",String(checking));
+  [$("taskSel"),$("backSchedule"),$("startAssessment"),...document.querySelectorAll("[data-w]")].forEach(el=>el.disabled=checking);
+}
+async function checkPhotos(loadFiles,student){
+  if(checking)return;
+  if(!status.live){toast(t("noKey"));return}
+  const taskId=task().id,requestLang=lang;
+  checking=true;renderUploadState();
+  cur={student,image:null,res:{readable:true,transcript:"",descriptors:[],first_error:null,hint:"",error_tags:[]},aiScore:0,approved:true,pending:true};
+  renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"});
+  try{
+    const files=await loadFiles(),images=await Promise.all(files.map(shrink));
+    cur.image=images[0];renderCheck();
+    const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId,images,lang:requestLang,student})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||t("photoError"));
+    cur.res=d;cur.transcript=d.transcript;cur.aiScore=scoreOf(d);cur.aiHint=d.hint;cur.aiDescriptors=structuredClone(d.descriptors);cur.approved=false;cur.pending=false;renderCheck();
+  }catch(err){cur.transcript=err.message||t("photoError");cur.pending=false;cur.failed=true;renderCheck()}
+  finally{checking=false;renderUploadState()}
+}
+$("file").onchange=(e)=>{
+  const files=[...e.target.files].slice(0,4);e.target.value="";if(!files.length)return;
+  const n=mine().length+(task().variants?1:demo.works.length+1);
+  return checkPhotos(()=>files,"У-"+String(n).padStart(2,"0"));
 };
+$("samplePhoto").onclick=()=>checkPhotos(()=>Promise.all([1,2].map(async(page)=>{
+  const r=await fetch(`/samples/variant25-page${page}.jpg`);
+  if(!r.ok)throw new Error(t("photoError"));
+  return r.blob();
+})),t("sampleStudent"));
 
 Promise.all([fetch("/api/tasks").then(r=>r.json()),fetch("/api/demo").then(r=>r.json()),fetch("/api/status").then(r=>r.json()),fetch("/api/schedule").then(r=>r.json())])
   .then(([a,b,c,d])=>{tasks=a;demo=b;status=c;schedule=d;renderStatic();showScreen("schedule")});
