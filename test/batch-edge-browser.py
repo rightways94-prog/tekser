@@ -5,7 +5,7 @@ import csv
 BASE=os.environ.get('TEKSER_TEST_URL','http://127.0.0.1:3000')
 photo=str(Path(__file__).with_name('variant25-page1.jpg'))
 with sync_playwright() as p:
- b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+ b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--no-proxy-server'])
  page=b.new_page(viewport={'width':375,'height':900},accept_downloads=True);errors=[];console=[];calls=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.on('console',lambda m:console.append(m.text) if m.type=='error' else None)
@@ -13,7 +13,7 @@ with sync_playwright() as p:
  data={'task':{'title':'=SUM(1,2)','prompt':'2'*150,'answer':'4','descriptors':['Получает <b>4</b>']},'result':{'readable':True,'variant':'','transcript':'4','descriptors':[{'id':'D1','met':True,'comment':''}],'first_error':None,'hint':'OK','error_tags':[]}}
  def respond(r):
   calls.append(r.request.post_data_json)
-  if len(calls)==1:r.fulfill(status=502,json={'error':'Тестовая ошибка проверки'})
+  if len(calls)==1:r.fulfill(status=502,json={'error':'Тестовая ошибка проверки','referenceTask':data['task']})
   else:r.fulfill(json=data)
  page.route('**/api/batch-check',respond)
  page.goto(BASE,wait_until='networkidle');page.locator('#newBatch').click()
@@ -26,7 +26,7 @@ with sync_playwright() as p:
  page.locator('#batchStart').click()
  page.wait_for_function('document.querySelectorAll("#batchRows [data-review]").length===1 && !document.getElementById("batchStart").disabled')
  assert len(calls)==2 and [len(c['images']) for c in calls]==[4,1]
- assert '0 /' not in page.locator('#batchRows article').first.inner_text()
+ assert '0 /' not in page.locator('#batchTableRows tr').first.inner_text()
  with page.expect_download() as event:page.locator('#batchCSV').click()
  rows=list(csv.reader(open(event.value.path(),encoding='utf-8-sig'),delimiter=';'))
  assert rows[1][3]=='' and rows[2][2].startswith("'")

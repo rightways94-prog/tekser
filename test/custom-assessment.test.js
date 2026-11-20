@@ -198,3 +198,42 @@ test("batch without key returns localized 503", async () => {
     assert.equal(app.calls.length, 0);
   }
 });
+
+test("batch reference fixes descriptors once, solves another variant and reuses identical answer", async () => {
+  let variant = 0;
+  const app = server(payload => {
+    if (payload.text.format.name === "task_draft") return draftResult;
+    if (payload.text.format.name === "batch_variant") { variant++; return { sameVariant: variant === 2, compatible: true, title: "Вариант 2", prompt: "1. Найдите 3²", answer: "1. 9" }; }
+    return result;
+  });
+  const first = await app.batch({ images: [photo] });
+  assert.ok(first.body.referenceTask, "First work returns the fixed scale");
+  const ref = first.body.referenceTask;
+  const second = await app.batch({ images: [photo], referenceTask: ref });
+  const third = await app.batch({ images: [photo], referenceTask: ref });
+  assert.equal(second.body.task.answer, "1. 9");
+  assert.equal(third.body.task.answer, ref.answer);
+  for (const response of [first, second, third]) {
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(Array.from(response.body.task.descriptors), Array.from(ref.descriptors));
+  }
+  assert.equal(app.calls.filter(p => p.text.format.name === "task_draft").length, 1);
+  assert.equal(app.calls.filter(p => p.text.format.name === "batch_variant").length, 2);
+  assert.ok(app.calls[3].input[0].content[0].text.includes("1. 9"));
+});
+test("incompatible variant is not graded on an invented different maximum", async () => {
+  const app = server(() => ({ sameVariant: false, compatible: false, title: "Другое", prompt: "Другое задание", answer: "Нет" }));
+  const response = await app.batch({ images: [photo], referenceTask: draftResult });
+  assert.equal(response.statusCode, 422);
+  assert.equal(response.body.result, undefined);
+  assert.equal(app.calls.length, 1);
+});
+test("a prepared reference survives first grading failure and invalid references are rejected", async () => {
+  const app = server(payload => payload.text.format.name === "task_draft" ? draftResult : { ...result, readable: false });
+  const response = await app.batch({ images: [photo] });
+  assert.equal(response.statusCode, 422);
+  assert.equal(response.body.referenceTask.answer, draftResult.answer);
+  const invalid = server(batchAI);
+  assert.equal((await invalid.batch({ images: [photo], referenceTask: {} })).statusCode, 400);
+  assert.equal(invalid.calls.length, 0);
+});

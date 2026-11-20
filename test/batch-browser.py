@@ -6,7 +6,7 @@ photo=str(Path(__file__).with_name('variant25-page1.jpg'))
 def payload(i):
  return {'task':{'title':f'Вариант {i}','prompt':f'Печатное условие {i}','answer':f'Ответ {i}','descriptors':['Шаг','Ответ']},'result':{'readable':True,'variant':'','transcript':'Решение','descriptors':[{'id':'D1','met':True,'comment':''},{'id':'D2','met':False,'comment':'Ошибка'}],'first_error':{'part':'1','text':'Проверь ответ'},'hint':'Пересчитай','error_tags':['D2']}}
 with sync_playwright() as p:
- b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+ b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--no-proxy-server'])
  for lang in ('ru','kk'):
   page=b.new_page(viewport={'width':375,'height':900},accept_downloads=True);errors=[];requests=[];held=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
