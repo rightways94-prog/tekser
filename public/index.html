@@ -35,6 +35,7 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 .hidden{display:none}
 .brand{flex:1;min-width:0}.accuracy{font-size:12px;line-height:16px;color:var(--mut);margin:4px 0 0;text-wrap:pretty}
 .quick-start{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:8px}.quick-start summary{cursor:pointer;font-weight:600}.quick-start p{margin:8px 0 0;overflow-wrap:anywhere}
+.draft-sources{min-width:0;margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:8px}.draft-sources input{display:block;max-width:100%;font:inherit}.draft-proposal{padding:10px;background:var(--soft);border-radius:8px}
 .sample{margin-top:12px}.sample button{max-width:100%;text-align:left;white-space:normal}.sample small{display:block;margin-top:4px;font-size:12px;line-height:16px;color:var(--mut)}
 [hidden]{display:none!important}
 @media(max-width:600px){header{flex-wrap:wrap}.brand{flex-basis:100%}header>.row{width:100%;justify-content:space-between}}
@@ -79,6 +80,16 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
     <form id="customForm" class="hidden">
       <h3 data-i="customNew"></h3>
       <p class="mut" data-i="customHelp"></p>
+      <fieldset id="draftSources" class="draft-sources">
+        <legend data-i="draftSources"></legend>
+        <p class="mut" data-i="draftHelp"></p>
+        <p><label for="draftImages" data-i="draftImages"></label><input id="draftImages" type="file" accept="image/*" multiple></p>
+        <p><label for="draftRubricImages" data-i="draftRubricImages"></label><input id="draftRubricImages" type="file" accept="image/*" multiple></p>
+        <p><label for="draftRubricText" data-i="draftRubricText"></label><textarea id="draftRubricText" rows="3" maxlength="10000"></textarea></p>
+        <button id="prepareDraft" type="button" data-i="prepareDraft"></button>
+        <p id="draftStatus" class="mut" role="status"></p>
+      </fieldset>
+      <p id="draftProposal" class="draft-proposal" data-i="draftProposal" hidden></p>
       <p><label for="customTitle" data-i="customTitle"></label><input id="customTitle" required maxlength="120" style="width:100%;font:inherit;padding:8px"></p>
       <p><label for="customPrompt" data-i="customPrompt"></label><textarea id="customPrompt" required maxlength="10000" rows="3"></textarea></p>
       <p><label for="customAnswer" data-i="customAnswer"></label><textarea id="customAnswer" required maxlength="10000" rows="3"></textarea></p>
@@ -132,7 +143,7 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 <script>
 const T = {
   // Код вымышленного ученика одинаков в обоих языках.
-  ru:{customNew:"Любой СОР/БЖБ",customHelp:"Введите своё задание и эталон. Каждый дескриптор — отдельная строка и 1 балл (до 30). Затем загрузите фото работ. Задание хранится только в этом браузере; для проверки нужен API-ключ.",customTitle:"Название задания",customPrompt:"Условие задания",customAnswer:"Эталон ответа и ход решения",customDescriptors:"Дескрипторы (по одному на строку)",saveCustom:"Сохранить задание и перейти к фото",customInvalid:"Заполните все поля: название до 120 знаков, условие и эталон до 10 000, от 1 до 30 дескрипторов по 500 знаков.",resultLocalOnly:"Результат сохранён только до перезагрузки: хранилище браузера недоступно.",customLocalOnly:"Хранилище браузера недоступно: задание сохранено только до перезагрузки.",criterionError:(text)=>`Не выполнено: ${text}`,criterionTip:"Повторите этот шаг на похожем задании.",desk:"Рабочий стол учителя",scheduleTitle:"Расписание · 7«А» · Алгебра",backSchedule:"← Расписание",goal:"Цель урока",slides:"Презентация",assessment:"Задание",startAssessment:"Проверить БЖБ/СОР",days:{mon:"Понедельник",tue:"Вторник",wed:"Среда",thu:"Четверг",fri:"Пятница"},agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
+  ru:{draftSources:"Подготовка по фото — необязательно",draftHelp:"Загрузите 1–4 фото листа заданий или введите условие ниже. Можно добавить критерии/ключ: до 4 фото и/или текст. ИИ заполнит поля, а вы проверите и исправите результат. Фото не сохраняются.",draftImages:"Фото листа заданий (1–4 стр.)",draftRubricImages:"Фото критериев/ключа (необязательно, до 4 стр.)",draftRubricText:"Текст критериев/ключа (необязательно)",prepareDraft:"✨ Подготовить с ИИ",draftWorking:"ИИ готовит задание…",draftProposal:"Предложено ИИ — проверьте перед использованием",draftNoKey:"Подготовка с ИИ недоступна: нет ключа API. Заполните задание вручную.",draftInput:"Добавьте 1–4 фото задания или условие ниже. Критерии — до 4 фото.",draftFailed:"Не удалось подготовить задание. Проверьте фото или заполните поля вручную.",customNew:"Любой СОР/БЖБ",customHelp:"Введите своё задание и эталон. Каждый дескриптор — отдельная строка и 1 балл (до 30). Затем загрузите фото работ. Задание хранится только в этом браузере; для проверки нужен API-ключ.",customTitle:"Название задания",customPrompt:"Условие задания",customAnswer:"Эталон ответа и ход решения",customDescriptors:"Дескрипторы (по одному на строку)",saveCustom:"Сохранить задание и перейти к фото",customInvalid:"Заполните все поля: название до 120 знаков, условие и эталон до 10 000, от 1 до 30 дескрипторов по 500 знаков.",resultLocalOnly:"Результат сохранён только до перезагрузки: хранилище браузера недоступно.",customLocalOnly:"Хранилище браузера недоступно: задание сохранено только до перезагрузки.",criterionError:(text)=>`Не выполнено: ${text}`,criterionTip:"Повторите этот шаг на похожем задании.",desk:"Рабочий стол учителя",scheduleTitle:"Расписание · 7«А» · Алгебра",backSchedule:"← Расписание",goal:"Цель урока",slides:"Презентация",assessment:"Задание",startAssessment:"Проверить БЖБ/СОР",days:{mon:"Понедельник",tue:"Вторник",wed:"Среда",thu:"Четверг",fri:"Пятница"},agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
     accuracy:"Точность на тестовой работе: 20 из 20 дескрипторов совпали с оценкой учителя",
     quickStart:"Как попробовать за 1 минуту",quickSteps:"Среда → Проверить → Работа А (или Пятница → пример фото) → ✓ Утвердить → Карта ошибок.",
     samplePhoto:"🧪 Проверить пример фото (вымышленный ученик, 2 стр.)",sampleNote:"Настоящая проверка ИИ, ~15 сек",sampleStudent:"Пример",
@@ -144,7 +155,7 @@ const T = {
     empty:"Пока нет утверждённых работ.",live:(m)=>`ИИ: ${m}`,demoOnly:"Демо-режим",noKey:"Загрузка своих фото выключена (нет ключа API).",
     checking:"ИИ проверяет фото… (10–30 с)",sent:"Демо: сообщение ученику сформировано, ничего не отправлено.",aiScore:(s)=>`Балл ИИ: ${s}`,
     unread:"Фото нечитаемо — переснимите при хорошем свете.",privacy:"Фото не сохраняются на сервере. Только вымышленные или обезличенные данные; ученики — коды."},
-  kk:{customNew:"Кез келген БЖБ",customHelp:"Өз тапсырмаңыз бен үлгі жауабын енгізіңіз. Әр дескриптор — жеке жол және 1 ұпай (30-ға дейін). Содан кейін жұмыс фотоларын жүктеңіз. Тапсырма тек осы браузерде сақталады; тексеру үшін API кілті қажет.",customTitle:"Тапсырманың атауы",customPrompt:"Тапсырманың шарты",customAnswer:"Үлгі жауап және шешу жолы",customDescriptors:"Дескрипторлар (әр жолға біреу)",saveCustom:"Тапсырманы сақтап, фотоға өту",customInvalid:"Барлық өрісті толтырыңыз: атау 120, шарт пен жауап 10 000 таңбаға дейін, әрқайсысы 500 таңбадан аспайтын 1–30 дескриптор.",resultLocalOnly:"Нәтиже бет жаңартылғанша ғана сақталады: браузер қоймасы қолжетімсіз.",customLocalOnly:"Браузер қоймасы қолжетімсіз: тапсырма бет жаңартылғанша ғана сақталады.",criterionError:(text)=>`Орындалмады: ${text}`,criterionTip:"Осы қадамды ұқсас тапсырмада қайталаңыз.",desk:"Мұғалімнің жұмыс үстелі",scheduleTitle:"Сабақ кестесі · 7«А» · Алгебра",backSchedule:"← Сабақ кестесі",goal:"Сабақтың мақсаты",slides:"Презентация",assessment:"Тапсырма",startAssessment:"БЖБ тексеру",days:{mon:"Дүйсенбі",tue:"Сейсенбі",wed:"Сәрсенбі",thu:"Бейсенбі",fri:"Жұма"},agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
+  kk:{draftSources:"Фото бойынша дайындау — міндетті емес",draftHelp:"Тапсырма парағының 1–4 фотосын жүктеңіз немесе төменде шартын енгізіңіз. Критерийлерді/жауап кілтін қосуға болады: 4 фотоға дейін және/немесе мәтін. ЖИ өрістерді толтырады, ал сіз нәтижені тексеріп, түзетесіз. Фото сақталмайды.",draftImages:"Тапсырма парағының фотосы (1–4 бет)",draftRubricImages:"Критерийлер/жауап кілтінің фотосы (міндетті емес, 4 бетке дейін)",draftRubricText:"Критерийлер/жауап кілтінің мәтіні (міндетті емес)",prepareDraft:"✨ ЖИ арқылы дайындау",draftWorking:"ЖИ тапсырманы дайындап жатыр…",draftProposal:"ЖИ ұсынған — қолданар алдында тексеріңіз",draftNoKey:"ЖИ арқылы дайындау қолжетімсіз: API кілті жоқ. Тапсырманы қолмен толтырыңыз.",draftInput:"Тапсырманың 1–4 фотосын немесе төменде шартын қосыңыз. Критерийлер — 4 фотоға дейін.",draftFailed:"Тапсырманы дайындау мүмкін болмады. Фотоны тексеріңіз немесе өрістерді қолмен толтырыңыз.",customNew:"Кез келген БЖБ",customHelp:"Өз тапсырмаңыз бен үлгі жауабын енгізіңіз. Әр дескриптор — жеке жол және 1 ұпай (30-ға дейін). Содан кейін жұмыс фотоларын жүктеңіз. Тапсырма тек осы браузерде сақталады; тексеру үшін API кілті қажет.",customTitle:"Тапсырманың атауы",customPrompt:"Тапсырманың шарты",customAnswer:"Үлгі жауап және шешу жолы",customDescriptors:"Дескрипторлар (әр жолға біреу)",saveCustom:"Тапсырманы сақтап, фотоға өту",customInvalid:"Барлық өрісті толтырыңыз: атау 120, шарт пен жауап 10 000 таңбаға дейін, әрқайсысы 500 таңбадан аспайтын 1–30 дескриптор.",resultLocalOnly:"Нәтиже бет жаңартылғанша ғана сақталады: браузер қоймасы қолжетімсіз.",customLocalOnly:"Браузер қоймасы қолжетімсіз: тапсырма бет жаңартылғанша ғана сақталады.",criterionError:(text)=>`Орындалмады: ${text}`,criterionTip:"Осы қадамды ұқсас тапсырмада қайталаңыз.",desk:"Мұғалімнің жұмыс үстелі",scheduleTitle:"Сабақ кестесі · 7«А» · Алгебра",backSchedule:"← Сабақ кестесі",goal:"Сабақтың мақсаты",slides:"Презентация",assessment:"Тапсырма",startAssessment:"БЖБ тексеру",days:{mon:"Дүйсенбі",tue:"Сейсенбі",wed:"Сәрсенбі",thu:"Бейсенбі",fri:"Жұма"},agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
     accuracy:"Сынақ жұмысындағы дәлдік: 20 дескриптордың 20-сы мұғалімнің бағасымен сәйкес келді",
     quickStart:"1 минутта қалай сынап көруге болады",quickSteps:"Сәрсенбі → Тексеру → А жұмысы (немесе Жұма → фото үлгісі) → ✓ Бекіту → Қателер картасы.",
     samplePhoto:"🧪 Фото үлгісін тексеру (ойдан алынған оқушы, 2 бет)",sampleNote:"ЖИ арқылы нақты тексеру, ~15 сек",sampleStudent:"Пример",
@@ -157,7 +168,7 @@ const T = {
     checking:"ЖИ фотоны тексеріп жатыр… (10–30 с)",sent:"Демо: оқушыға хабарлама дайын, ештеңе жіберілмеді.",aiScore:(s)=>`ЖИ ұпайы: ${s}`,
     unread:"Фото оқылмайды — жақсы жарықта қайта түсіріңіз.",privacy:"Фотолар серверде сақталмайды. Тек ойдан алынған немесе иесіз деректер; оқушылар — кодтар."}
 };
-let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null, schedule=[], lesson=null, screen="schedule", checking=false;
+let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null, schedule=[], lesson=null, screen="schedule", checking=false, drafting=false;
 const $=(id)=>document.getElementById(id), t=(k,...a)=>{const v=T[lang][k];return typeof v==="function"?v(...a):v};
 const store={
   get(){if(memoryOnly)return mem;try{const value=JSON.parse(localStorage.getItem("tekser.approved")||"[]");return Array.isArray(value)?value:mem}catch{return mem}},
@@ -181,7 +192,7 @@ $("customForm").onsubmit=(e)=>{
   if(!created){toast(t("customInvalid"));return}
   tasks.push(created);
   try{localStorage.setItem("tekser.customTasks",JSON.stringify(tasks.filter(x=>x.custom).map(x=>x.definition)))}catch{toast(t("customLocalOnly"))}
-  $("customForm").reset();selectTask(created.id);
+  $("customForm").reset();$("draftProposal").hidden=true;$("draftStatus").textContent="";selectTask(created.id);
 };
 const mine=()=>store.get().filter(x=>(x.taskId||tasks[0].id)===task().id);
 const tagName=(id)=>{const e=task().errorTags.find(x=>x.id===id);return e?(lang==="kk"?e.kk:e.ru):id};
@@ -306,14 +317,39 @@ document.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{lang=b.dataset.l
 
 function shrink(file){return new Promise((ok,no)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{URL.revokeObjectURL(url);try{const k=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))}catch(err){no(err)}};img.onerror=()=>{URL.revokeObjectURL(url);no(new Error(t("photoError")))};img.src=url})}
 function renderUploadState(){
-  $("samplePhoto").disabled=checking||!status.live;
-  $("file").disabled=checking||tid===NEW_CUSTOM;
+  const busy=checking||drafting;
+  document.querySelectorAll("#customForm input,#customForm textarea,#customForm button").forEach(el=>el.disabled=busy);
+  $("prepareDraft").textContent=t(drafting?"draftWorking":"prepareDraft");
+  $("draftSources").setAttribute("aria-busy",String(drafting));
+  if(drafting)$("draftStatus").textContent=t("draftWorking");
+  $("samplePhoto").disabled=busy||!status.live;
+  $("file").disabled=busy||tid===NEW_CUSTOM;
   $("upLabel").setAttribute("aria-busy",String(checking));
   $("samplePhoto").setAttribute("aria-busy",String(checking));
-  [$("taskSel"),$("backSchedule"),$("startAssessment"),$("newCustom"),...document.querySelectorAll("[data-w]")].forEach(el=>el.disabled=checking);
+  [$("taskSel"),$("backSchedule"),$("startAssessment"),$("newCustom"),...document.querySelectorAll("[data-w]")].forEach(el=>el.disabled=busy);
 }
+$("prepareDraft").onclick=async()=>{
+  if(drafting||checking)return;
+  if(!status.live){$("draftStatus").textContent=t("draftNoKey");return}
+  const photos=[...$("draftImages").files],rubricPhotos=[...$("draftRubricImages").files];
+  const text=$("customPrompt").value,rubricText=$("draftRubricText").value,requestLang=lang;
+  if(photos.length>4||rubricPhotos.length>4||(!photos.length&&!text.trim())){$("draftStatus").textContent=t("draftInput");return}
+  drafting=true;renderUploadState();
+  try{
+    const [images,rubricImages]=await Promise.all([Promise.all(photos.map(shrink)),Promise.all(rubricPhotos.map(shrink))]);
+    const r=await fetch("/api/task-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({images,rubricImages,rubricText,text,lang:requestLang})});
+    const draft=await r.json();if(!r.ok)throw new Error(draft.error||t("draftFailed"));
+    const proposed=customTaskFrom({...draft,id:"custom-draft"});
+    if(!proposed||draft.descriptors.some(d=>/[\r\n]/.test(d)))throw new Error(t("draftFailed"));
+    $("customTitle").value=draft.title;$("customPrompt").value=draft.prompt;
+    $("customAnswer").value=draft.answer;$("customDescriptors").value=draft.descriptors.join("\n");
+    $("draftProposal").hidden=false;$("draftStatus").textContent="";
+    $("draftProposal").scrollIntoView({behavior:"smooth",block:"center"});
+  }catch(err){$("draftStatus").textContent=err.message||t("draftFailed")}
+  finally{drafting=false;renderUploadState()}
+};
 async function checkPhotos(loadFiles,student){
-  if(checking||tid===NEW_CUSTOM)return;
+  if(checking||drafting||tid===NEW_CUSTOM)return;
   if(!status.live){toast(t("noKey"));return}
   const taskId=task().id,requestLang=lang,customTask=task().definition;
   checking=true;renderUploadState();

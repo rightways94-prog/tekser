@@ -18,11 +18,14 @@ function server(aiResult = result, key = "test-only") {
     calls.push(JSON.parse(init.body));
     return { ok: true, json: async () => ({ output_text: JSON.stringify(aiResult) }) };
   }});
-  return { calls, async check(body) {
+  async function post(path, body) {
     const res = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; return this; } };
-    await routes.get("/api/check")({ body, ip: "127.0.0.1" }, res);
+    const handler = routes.get(path);
+    assert.ok(handler, `${path} route is registered`);
+    await handler({ body, ip: "127.0.0.1" }, res);
     return res;
-  }};
+  }
+  return { calls, check: body => post("/api/check", body), draft: body => post("/api/task-draft", body) };
 }
 const request = (task = customTask) => ({ customTask: task, images: ["data:image/jpeg;base64,AA=="], lang: "ru" });
 
@@ -76,4 +79,49 @@ test("existing task still uses the stored assignment", async () => {
   const res = await app.check({ taskId: "alg7-bzhb-exponents", images: ["data:image/jpeg;base64,AA=="], lang: "kk" });
   assert.equal(res.statusCode, 200);
   assert.ok(app.calls[0].input[0].content[0].text.includes("казахском"));
+});
+
+const draftResult = { title: "Степени", prompt: "1. Найдите 2²", answer: "1. 4", descriptors: ["Записывает произведение 2·2", "Получает ответ 4"] };
+const photo = "data:image/jpeg;base64,AA==";
+test("task draft uses supplied photos and rubric, same model and strict bounded schema", async () => {
+  const app = server(draftResult);
+  const res = await app.draft({ images: [photo], rubricImages: [photo], rubricText: "Ключ: 1. 4", text: "7 класс", lang: "kk" });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(res.body)), draftResult);
+  const call = app.calls[0];
+  assert.equal(call.model, "gpt-6.1-sol");
+  const content = call.input[0].content;
+  assert.equal(content.filter(c => c.type === "input_image").length, 2);
+  const prompt = content.filter(c => c.type === "input_text").map(c => c.text).join("\n");
+  for (const text of ["Ключ: 1. 4", "7 класс", "казахском", "точно", "РК", "по номерам", "ключевое действие", "верный ответ"]) assert.ok(prompt.includes(text), text);
+  assert.equal(call.text.format.strict, true);
+  assert.equal(call.text.format.schema.properties.descriptors.maxItems, 30);
+});
+test("text-only task draft is supported and invalid input does not call AI", async () => {
+  assert.equal((await server(draftResult).draft({ text: "Найди 2²", lang: "ru" })).statusCode, 200);
+  for (const body of [{}, { rubricText: "Критерий" }, { images: ["https://example.com/x.jpg"] }, { images: Array(5).fill(photo) }, { images: [photo], rubricImages: ["bad"] }, { text: "x".repeat(10001) }, { text: "Задание", rubricText: 4 }]) {
+    const app = server(draftResult);
+    assert.equal((await app.draft(body)).statusCode, 400);
+    assert.equal(app.calls.length, 0);
+  }
+});
+test("task draft rejects unusable AI results without truncating teacher criteria", async () => {
+  for (const patch of [{ answer: "" }, { descriptors: [] }, { descriptors: Array(31).fill("Критерий") }, { descriptors: ["x".repeat(501)] }, { descriptors: ["Шаг\nОтвет"] }, { title: "x".repeat(121) }]) {
+    assert.equal((await server({ ...draftResult, ...patch }).draft({ images: [photo] })).statusCode, 502);
+  }
+});
+test("task draft and photo checking share the same limit", async () => {
+  const app = server(result);
+  for (let i = 0; i < 5; i++) assert.equal((await app.check(request())).statusCode, 200);
+  assert.equal((await app.draft({ images: [photo] })).statusCode, 429);
+  assert.equal(app.calls.length, 5);
+});
+test("task draft without key gives a localized 503", async () => {
+  for (const lang of ["ru", "kk"]) {
+    const app = server(draftResult, "");
+    const res = await app.draft({ images: [photo], lang });
+    assert.equal(res.statusCode, 503);
+    assert.ok(res.body.error.includes(lang === "ru" ? "ключ" : "кілт"));
+    assert.equal(app.calls.length, 0);
+  }
 });
