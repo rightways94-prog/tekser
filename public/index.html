@@ -32,6 +32,7 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 .trust-stats{display:flex;flex-wrap:wrap;gap:8px 20px;margin:12px 0;padding:10px;background:var(--soft);border-radius:8px;font-size:14px}.trust-stats>div{flex:1 1 240px}.trust-stats small{display:block;color:var(--mut);font-size:12px}
 .screen{display:grid;gap:14px;min-width:0}.week{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.lesson-button{display:flex;flex-direction:column;gap:8px;text-align:left;height:100%;overflow-wrap:anywhere}.lesson-button:hover{border-color:var(--acc);background:var(--soft)}.lesson-button time{font-size:13px;color:var(--mut)}a.btn{display:inline-block;color:var(--acc);font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px 12px;text-decoration:none}.lesson-assessment{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
 @media(max-width:600px){.week{grid-template-columns:1fr}}
+.batch-photos{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:12px 0}.batch-photo{display:flex;align-items:center;gap:8px;border:1px solid var(--line);padding:8px;border-radius:8px;min-width:0}.batch-photo img{width:52px;height:68px;object-fit:contain}.batch-photo label{min-width:0;overflow-wrap:anywhere}.batch-photo input{width:64px;font:inherit}.batch-row{padding:12px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}.batch-row h3{margin:0;font-size:16px}.batch-row details{margin:10px 0}.batch-controls{border:0;margin:0;padding:0;min-width:0}.batch-controls input[type=file]{display:block;max-width:100%;font:inherit}.batch-summary{padding:10px;background:var(--soft);border-radius:8px}.batch-row p{margin:8px 0}
 .hidden{display:none}
 .brand{flex:1;min-width:0}.accuracy{font-size:12px;line-height:16px;color:var(--mut);margin:4px 0 0;text-wrap:pretty}
 .quick-start{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:8px}.quick-start summary{cursor:pointer;font-weight:600}.quick-start p{margin:8px 0 0;overflow-wrap:anywhere}
@@ -56,11 +57,36 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
         <summary data-i="quickStart"></summary>
         <p class="mut" data-i="quickSteps"></p>
       </details>
+      <p><button id="newBatch" class="primary" data-i="batchNew"></button></p>
       <p><button id="newCustom" data-i="customNew"></button></p>
       <div id="weekGrid" class="week"></div>
     </section>
   </div>
-  <div><button id="backSchedule" class="hidden" data-i="backSchedule"></button></div>
+  <div class="row"><button id="backSchedule" class="hidden" data-i="backSchedule"></button><button id="backBatch" class="hidden" data-i="backBatch"></button></div>
+  <div id="batchScreen" class="screen hidden">
+    <section class="card">
+      <h2 data-i="batchNew"></h2>
+      <p class="mut" data-i="batchHelp"></p>
+      <p id="batchRules" class="mut"></p>
+      <fieldset id="batchConfig" class="batch-controls">
+        <p><label for="batchFiles" data-i="batchFiles"></label><input id="batchFiles" type="file" accept="image/*" multiple></p>
+        <p><label for="batchPages" data-i="batchPages"></label> <select id="batchPages"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></p>
+        <p><label for="batchRubricText" data-i="draftRubricText"></label><textarea id="batchRubricText" maxlength="10000" rows="2"></textarea></p>
+        <div id="batchGrouping" class="batch-photos"></div>
+      </fieldset>
+      <p id="batchSummary" class="mut"></p>
+      <p id="batchNotice" class="mut" role="status"></p>
+      <div class="row"><button id="batchStart" class="primary" data-i="batchStart"></button><button id="batchStop" data-i="batchStop" disabled></button><button id="batchReset" data-i="batchReset"></button></div>
+    </section>
+    <section id="batchReport" class="card hidden">
+      <h2 data-i="batchReport"></h2>
+      <p class="mut" data-i="batchAiWarning"></p>
+      <p id="batchProgress" class="batch-summary" role="status"></p>
+      <p id="batchAgreement" class="mut hidden"></p>
+      <button id="batchCSV" data-i="csv"></button>
+      <div id="batchRows"></div>
+    </section>
+  </div>
   <section id="lessonScreen" class="card hidden">
     <p id="lessonDate" class="mut"></p>
     <h2 id="lessonTopic"></h2>
@@ -114,6 +140,10 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
     <h2 data-i="s2"></h2>
     <div class="row" style="justify-content:space-between"><b id="who"></b><span><span class="score" id="score"></span> <span class="mut">/ <span id="max"></span></span></span></div>
     <img id="prev" class="prev hidden" alt="">
+    <div id="pageNav" class="row hidden" style="margin:8px 0">
+      <button id="previousPage" type="button">←</button><span id="pageCount" class="mut" aria-live="polite"></span><button id="nextPage" type="button">→</button>
+      <a id="openPage" class="btn" target="_blank" rel="noopener" data-i="openPage"></a>
+    </div>
     <pre id="transcript"></pre>
     <div id="descs"></div>
     <div id="errBox"></div>
@@ -143,7 +173,7 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 <script>
 const T = {
   // Код вымышленного ученика одинаков в обоих языках.
-  ru:{draftSources:"Подготовка по фото — необязательно",draftHelp:"Загрузите 1–4 фото листа заданий или введите условие ниже. Можно добавить критерии/ключ: до 4 фото и/или текст. ИИ заполнит поля, а вы проверите и исправите результат. Фото не сохраняются.",draftImages:"Фото листа заданий (1–4 стр.)",draftRubricImages:"Фото критериев/ключа (необязательно, до 4 стр.)",draftRubricText:"Текст критериев/ключа (необязательно)",prepareDraft:"✨ Подготовить с ИИ",draftWorking:"ИИ готовит задание…",draftProposal:"Предложено ИИ — проверьте перед использованием",draftNoKey:"Подготовка с ИИ недоступна: нет ключа API. Заполните задание вручную.",draftInput:"Добавьте 1–4 фото задания или условие ниже. Критерии — до 4 фото.",draftFailed:"Не удалось подготовить задание. Проверьте фото или заполните поля вручную.",customNew:"Любой СОР/БЖБ",customHelp:"Введите своё задание и эталон. Каждый дескриптор — отдельная строка и 1 балл (до 30). Затем загрузите фото работ. Задание хранится только в этом браузере; для проверки нужен API-ключ.",customTitle:"Название задания",customPrompt:"Условие задания",customAnswer:"Эталон ответа и ход решения",customDescriptors:"Дескрипторы (по одному на строку)",saveCustom:"Сохранить задание и перейти к фото",customInvalid:"Заполните все поля: название до 120 знаков, условие и эталон до 10 000, от 1 до 30 дескрипторов по 500 знаков.",resultLocalOnly:"Результат сохранён только до перезагрузки: хранилище браузера недоступно.",customLocalOnly:"Хранилище браузера недоступно: задание сохранено только до перезагрузки.",criterionError:(text)=>`Не выполнено: ${text}`,criterionTip:"Повторите этот шаг на похожем задании.",desk:"Рабочий стол учителя",scheduleTitle:"Расписание · 7«А» · Алгебра",backSchedule:"← Расписание",goal:"Цель урока",slides:"Презентация",assessment:"Задание",startAssessment:"Проверить БЖБ/СОР",days:{mon:"Понедельник",tue:"Вторник",wed:"Среда",thu:"Четверг",fri:"Пятница"},agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
+  ru:{workPages:"Страницы работы",previousPage:"Предыдущая страница",nextPage:"Следующая страница",pageCount:(i,n)=>`Страница ${i} из ${n}`,openPage:"Открыть фото",batchReplace:"Заменить фото этой работы (1–4)",batchReplaceError:"Выберите от 1 до 4 фото для этой работы.",batchReplacement:(n)=>`Новые фото: ${n}. Нажмите «Продолжить», чтобы проверить.`,batchNew:"📚 Проверить пачку работ",backBatch:"← Отчёт пачки",batchHelp:"Загрузите фото класса с напечатанными условиями в порядке работ. По умолчанию 2 страницы на ученика: измените число страниц или номер ученика у каждого фото. Сначала проверьте распределение. Фото и очередь не сохраняются после перезагрузки — выгрузите отчёт в CSV.",batchRules:(limit)=>`До 30 работ за пачку, 1–4 страницы на работу. Отдельный лимит: ${limit} работ в час; каждая работа — распознавание задания и проверка ИИ.`,batchFiles:"Все фото класса (до 120)",batchPages:"Страниц на ученика по умолчанию:",batchPhoto:(n)=>`Фото ${n} → ученик №`,batchGroupSummary:(pages,works)=>`Фото: ${pages}. Работ: ${works}.`,batchGroupError:"Выберите 1–120 фото; номера учеников — от 1 до 30, на каждого должно приходиться 1–4 страницы.",batchStart:"Проверить пачку",batchContinue:"Продолжить проверку",batchRetry:"Повторить неудачные",batchStop:"Остановить после текущей работы",batchReset:"Новая пачка (очистить отчёт)",batchReport:"Отчёт по пачке",batchAiWarning:"Оценки предварительные. ИИ распознал условия и предложил эталон для каждой работы — проверьте его. Утверждает учитель.",batchProgress:(done,total,errors,approved)=>`Проверено: ${done}/${total}. Не проверено из-за ошибки: ${errors}. Утверждено: ${approved}.`,batchReview:"Проверить результат →",batchErrorStatus:"Ошибка проверки",batchReady:"Проверено ИИ",batchPending:"Ожидает проверки",batchChecking:"ИИ распознаёт задание и проверяет работу…",batchFailed:"Не удалось проверить работу. Проверьте фото и повторите.",batchNoKey:"Проверка пачки недоступна: нет ключа API. Демо А/Б/В остаётся доступным.",batchStopping:"Завершаем текущую работу, затем остановимся.",batchStopped:"Проверка остановлена. Готовые результаты сохранены здесь, оставшиеся можно проверить кнопкой «Продолжить».",batchDone:"Обработка пачки завершена. Проверьте результаты и выгрузите CSV.",batchKey:"Распознанное условие и эталон ИИ",batchScore:"Балл",batchErrors:"Замечания",batchHint:"Подсказка",batchApproved:"Утверждено учителем",batchStudent:"Ученик",batchStatus:"Статус",batchMax:"Максимум",batchPercent:"Процент",batchTask:"Задание",draftSources:"Подготовка по фото — необязательно",draftHelp:"Загрузите 1–4 фото листа заданий или введите условие ниже. Можно добавить критерии/ключ: до 4 фото и/или текст. ИИ заполнит поля, а вы проверите и исправите результат. Фото не сохраняются.",draftImages:"Фото листа заданий (1–4 стр.)",draftRubricImages:"Фото критериев/ключа (необязательно, до 4 стр.)",draftRubricText:"Текст критериев/ключа (необязательно)",prepareDraft:"✨ Подготовить с ИИ",draftWorking:"ИИ готовит задание…",draftProposal:"Предложено ИИ — проверьте перед использованием",draftNoKey:"Подготовка с ИИ недоступна: нет ключа API. Заполните задание вручную.",draftInput:"Добавьте 1–4 фото задания или условие ниже. Критерии — до 4 фото.",draftFailed:"Не удалось подготовить задание. Проверьте фото или заполните поля вручную.",customNew:"Любой СОР/БЖБ",customHelp:"Введите своё задание и эталон. Каждый дескриптор — отдельная строка и 1 балл (до 30). Затем загрузите фото работ. Задание хранится только в этом браузере; для проверки нужен API-ключ.",customTitle:"Название задания",customPrompt:"Условие задания",customAnswer:"Эталон ответа и ход решения",customDescriptors:"Дескрипторы (по одному на строку)",saveCustom:"Сохранить задание и перейти к фото",customInvalid:"Заполните все поля: название до 120 знаков, условие и эталон до 10 000, от 1 до 30 дескрипторов по 500 знаков.",resultLocalOnly:"Результат сохранён только до перезагрузки: хранилище браузера недоступно.",customLocalOnly:"Хранилище браузера недоступно: задание сохранено только до перезагрузки.",criterionError:(text)=>`Не выполнено: ${text}`,criterionTip:"Повторите этот шаг на похожем задании.",desk:"Рабочий стол учителя",scheduleTitle:"Расписание · 7«А» · Алгебра",backSchedule:"← Расписание",goal:"Цель урока",slides:"Презентация",assessment:"Задание",startAssessment:"Проверить БЖБ/СОР",days:{mon:"Понедельник",tue:"Вторник",wed:"Среда",thu:"Четверг",fri:"Пятница"},agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
     accuracy:"Точность на тестовой работе: 20 из 20 дескрипторов совпали с оценкой учителя",
     quickStart:"Как попробовать за 1 минуту",quickSteps:"Среда → Проверить → Работа А (или Пятница → пример фото) → ✓ Утвердить → Карта ошибок.",
     samplePhoto:"🧪 Проверить пример фото (вымышленный ученик, 2 стр.)",sampleNote:"Настоящая проверка ИИ, ~15 сек",sampleStudent:"Пример",
@@ -155,7 +185,7 @@ const T = {
     empty:"Пока нет утверждённых работ.",live:(m)=>`ИИ: ${m}`,demoOnly:"Демо-режим",noKey:"Загрузка своих фото выключена (нет ключа API).",
     checking:"ИИ проверяет фото… (10–30 с)",sent:"Демо: сообщение ученику сформировано, ничего не отправлено.",aiScore:(s)=>`Балл ИИ: ${s}`,
     unread:"Фото нечитаемо — переснимите при хорошем свете.",privacy:"Фото не сохраняются на сервере. Только вымышленные или обезличенные данные; ученики — коды."},
-  kk:{draftSources:"Фото бойынша дайындау — міндетті емес",draftHelp:"Тапсырма парағының 1–4 фотосын жүктеңіз немесе төменде шартын енгізіңіз. Критерийлерді/жауап кілтін қосуға болады: 4 фотоға дейін және/немесе мәтін. ЖИ өрістерді толтырады, ал сіз нәтижені тексеріп, түзетесіз. Фото сақталмайды.",draftImages:"Тапсырма парағының фотосы (1–4 бет)",draftRubricImages:"Критерийлер/жауап кілтінің фотосы (міндетті емес, 4 бетке дейін)",draftRubricText:"Критерийлер/жауап кілтінің мәтіні (міндетті емес)",prepareDraft:"✨ ЖИ арқылы дайындау",draftWorking:"ЖИ тапсырманы дайындап жатыр…",draftProposal:"ЖИ ұсынған — қолданар алдында тексеріңіз",draftNoKey:"ЖИ арқылы дайындау қолжетімсіз: API кілті жоқ. Тапсырманы қолмен толтырыңыз.",draftInput:"Тапсырманың 1–4 фотосын немесе төменде шартын қосыңыз. Критерийлер — 4 фотоға дейін.",draftFailed:"Тапсырманы дайындау мүмкін болмады. Фотоны тексеріңіз немесе өрістерді қолмен толтырыңыз.",customNew:"Кез келген БЖБ",customHelp:"Өз тапсырмаңыз бен үлгі жауабын енгізіңіз. Әр дескриптор — жеке жол және 1 ұпай (30-ға дейін). Содан кейін жұмыс фотоларын жүктеңіз. Тапсырма тек осы браузерде сақталады; тексеру үшін API кілті қажет.",customTitle:"Тапсырманың атауы",customPrompt:"Тапсырманың шарты",customAnswer:"Үлгі жауап және шешу жолы",customDescriptors:"Дескрипторлар (әр жолға біреу)",saveCustom:"Тапсырманы сақтап, фотоға өту",customInvalid:"Барлық өрісті толтырыңыз: атау 120, шарт пен жауап 10 000 таңбаға дейін, әрқайсысы 500 таңбадан аспайтын 1–30 дескриптор.",resultLocalOnly:"Нәтиже бет жаңартылғанша ғана сақталады: браузер қоймасы қолжетімсіз.",customLocalOnly:"Браузер қоймасы қолжетімсіз: тапсырма бет жаңартылғанша ғана сақталады.",criterionError:(text)=>`Орындалмады: ${text}`,criterionTip:"Осы қадамды ұқсас тапсырмада қайталаңыз.",desk:"Мұғалімнің жұмыс үстелі",scheduleTitle:"Сабақ кестесі · 7«А» · Алгебра",backSchedule:"← Сабақ кестесі",goal:"Сабақтың мақсаты",slides:"Презентация",assessment:"Тапсырма",startAssessment:"БЖБ тексеру",days:{mon:"Дүйсенбі",tue:"Сейсенбі",wed:"Сәрсенбі",thu:"Бейсенбі",fri:"Жұма"},agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
+  kk:{workPages:"Жұмыс беттері",previousPage:"Алдыңғы бет",nextPage:"Келесі бет",pageCount:(i,n)=>`${n} беттің ${i}-беті`,openPage:"Фотоны ашу",batchReplace:"Осы жұмыстың фотосын ауыстыру (1–4)",batchReplaceError:"Осы жұмыс үшін 1–4 фото таңдаңыз.",batchReplacement:(n)=>`Жаңа фото: ${n}. Тексеру үшін «Жалғастыру» түймесін басыңыз.`,batchNew:"📚 Жұмыстар топтамасын тексеру",backBatch:"← Топтама есебі",batchHelp:"Шарты басылған сынып фотоларын жұмыстар ретімен жүктеңіз. Әдепкіде әр оқушыға 2 бет: бет санын немесе әр фотоның оқушы нөмірін өзгертіңіз. Алдымен бөлінуін тексеріңіз. Фото мен кезек бет жаңартылғаннан кейін сақталмайды — есепті CSV түрінде жүктеп алыңыз.",batchRules:(limit)=>`Бір топтамада 30 жұмысқа дейін, әр жұмысқа 1–4 бет. Бөлек шектеу: сағатына ${limit} жұмыс; әр жұмыста ЖИ тапсырманы танып, шешімді тексереді.`,batchFiles:"Сыныптың барлық фотосы (120-ға дейін)",batchPages:"Әр оқушының әдепкі бет саны:",batchPhoto:(n)=>`${n}-фото → оқушы №`,batchGroupSummary:(pages,works)=>`Фото: ${pages}. Жұмыс: ${works}.`,batchGroupError:"1–120 фото таңдаңыз; оқушы нөмірлері 1-ден 30-ға дейін, әр оқушыға 1–4 бет болуы керек.",batchStart:"Топтаманы тексеру",batchContinue:"Тексеруді жалғастыру",batchRetry:"Сәтсіздерін қайталау",batchStop:"Ағымдағы жұмыстан кейін тоқтату",batchReset:"Жаңа топтама (есепті тазалау)",batchReport:"Топтама есебі",batchAiWarning:"Бағалар алдын ала берілген. ЖИ әр жұмыстың шартын танып, үлгі жауап ұсынды — оны тексеріңіз. Мұғалім бекітеді.",batchProgress:(done,total,errors,approved)=>`Тексерілді: ${done}/${total}. Қатеге байланысты тексерілмеді: ${errors}. Бекітілді: ${approved}.`,batchReview:"Нәтижені тексеру →",batchErrorStatus:"Тексеру қатесі",batchReady:"ЖИ тексерді",batchPending:"Тексеруді күтуде",batchChecking:"ЖИ тапсырманы танып, жұмысты тексеріп жатыр…",batchFailed:"Жұмысты тексеру мүмкін болмады. Фотоны тексеріп, қайталаңыз.",batchNoKey:"Топтаманы тексеру қолжетімсіз: API кілті жоқ. А/Б/В демосы қолжетімді.",batchStopping:"Ағымдағы жұмысты аяқтап, тоқтаймыз.",batchStopped:"Тексеру тоқтатылды. Дайын нәтижелер осында сақталды, қалғанын «Жалғастыру» арқылы тексеруге болады.",batchDone:"Топтаманы өңдеу аяқталды. Нәтижелерді тексеріп, CSV жүктеп алыңыз.",batchKey:"Танылған шарт және ЖИ үлгі жауабы",batchScore:"Ұпай",batchErrors:"Ескертулер",batchHint:"Кеңес",batchApproved:"Мұғалім бекіткен",batchStudent:"Оқушы",batchStatus:"Күйі",batchMax:"Ең жоғары ұпай",batchPercent:"Пайыз",batchTask:"Тапсырма",draftSources:"Фото бойынша дайындау — міндетті емес",draftHelp:"Тапсырма парағының 1–4 фотосын жүктеңіз немесе төменде шартын енгізіңіз. Критерийлерді/жауап кілтін қосуға болады: 4 фотоға дейін және/немесе мәтін. ЖИ өрістерді толтырады, ал сіз нәтижені тексеріп, түзетесіз. Фото сақталмайды.",draftImages:"Тапсырма парағының фотосы (1–4 бет)",draftRubricImages:"Критерийлер/жауап кілтінің фотосы (міндетті емес, 4 бетке дейін)",draftRubricText:"Критерийлер/жауап кілтінің мәтіні (міндетті емес)",prepareDraft:"✨ ЖИ арқылы дайындау",draftWorking:"ЖИ тапсырманы дайындап жатыр…",draftProposal:"ЖИ ұсынған — қолданар алдында тексеріңіз",draftNoKey:"ЖИ арқылы дайындау қолжетімсіз: API кілті жоқ. Тапсырманы қолмен толтырыңыз.",draftInput:"Тапсырманың 1–4 фотосын немесе төменде шартын қосыңыз. Критерийлер — 4 фотоға дейін.",draftFailed:"Тапсырманы дайындау мүмкін болмады. Фотоны тексеріңіз немесе өрістерді қолмен толтырыңыз.",customNew:"Кез келген БЖБ",customHelp:"Өз тапсырмаңыз бен үлгі жауабын енгізіңіз. Әр дескриптор — жеке жол және 1 ұпай (30-ға дейін). Содан кейін жұмыс фотоларын жүктеңіз. Тапсырма тек осы браузерде сақталады; тексеру үшін API кілті қажет.",customTitle:"Тапсырманың атауы",customPrompt:"Тапсырманың шарты",customAnswer:"Үлгі жауап және шешу жолы",customDescriptors:"Дескрипторлар (әр жолға біреу)",saveCustom:"Тапсырманы сақтап, фотоға өту",customInvalid:"Барлық өрісті толтырыңыз: атау 120, шарт пен жауап 10 000 таңбаға дейін, әрқайсысы 500 таңбадан аспайтын 1–30 дескриптор.",resultLocalOnly:"Нәтиже бет жаңартылғанша ғана сақталады: браузер қоймасы қолжетімсіз.",customLocalOnly:"Браузер қоймасы қолжетімсіз: тапсырма бет жаңартылғанша ғана сақталады.",criterionError:(text)=>`Орындалмады: ${text}`,criterionTip:"Осы қадамды ұқсас тапсырмада қайталаңыз.",desk:"Мұғалімнің жұмыс үстелі",scheduleTitle:"Сабақ кестесі · 7«А» · Алгебра",backSchedule:"← Сабақ кестесі",goal:"Сабақтың мақсаты",slides:"Презентация",assessment:"Тапсырма",startAssessment:"БЖБ тексеру",days:{mon:"Дүйсенбі",tue:"Сейсенбі",wed:"Сәрсенбі",thu:"Бейсенбі",fri:"Жұма"},agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
     accuracy:"Сынақ жұмысындағы дәлдік: 20 дескриптордың 20-сы мұғалімнің бағасымен сәйкес келді",
     quickStart:"1 минутта қалай сынап көруге болады",quickSteps:"Сәрсенбі → Тексеру → А жұмысы (немесе Жұма → фото үлгісі) → ✓ Бекіту → Қателер картасы.",
     samplePhoto:"🧪 Фото үлгісін тексеру (ойдан алынған оқушы, 2 бет)",sampleNote:"ЖИ арқылы нақты тексеру, ~15 сек",sampleStudent:"Пример",
@@ -169,6 +199,7 @@ const T = {
     unread:"Фото оқылмайды — жақсы жарықта қайта түсіріңіз.",privacy:"Фотолар серверде сақталмайды. Тек ойдан алынған немесе иесіз деректер; оқушылар — кодтар."}
 };
 let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null, schedule=[], lesson=null, screen="schedule", checking=false, drafting=false;
+let batchBusy=false, batch={id:crypto.randomUUID(),photos:[],rows:[],started:false,stop:false,message:""};
 const $=(id)=>document.getElementById(id), t=(k,...a)=>{const v=T[lang][k];return typeof v==="function"?v(...a):v};
 const store={
   get(){if(memoryOnly)return mem;try{const value=JSON.parse(localStorage.getItem("tekser.approved")||"[]");return Array.isArray(value)?value:mem}catch{return mem}},
@@ -177,6 +208,11 @@ const store={
 let mem=[],memoryOnly=false;
 const NEW_CUSTOM="new-custom";
 const escapeHTML=(v)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+function releaseCurPreviews(){
+  if(!cur?.ownedPreviews)return;
+  cur.ownedPreviews.forEach(url=>URL.revokeObjectURL(url));cur.ownedPreviews=[];
+  $("prev").removeAttribute("src");$("openPage").removeAttribute("href");
+}
 function customTaskFrom(value){
   const text=(v,max)=>typeof v==="string"&&v.trim().length>0&&v.length<=max;
   if(!value||typeof value.id!=="string"||!/^custom-[a-zA-Z0-9-]{1,80}$/.test(value.id)||!text(value.title,120)||!text(value.prompt,10000)||!text(value.answer,10000)||!Array.isArray(value.descriptors)||!value.descriptors.length||value.descriptors.length>30||!value.descriptors.every(d=>text(d,500)))return null;
@@ -206,6 +242,8 @@ quickStart.addEventListener("toggle",()=>{
 
 function showScreen(next){
   screen=next;
+  $("batchScreen").classList.toggle("hidden",screen!=="batch");
+  $("backBatch").classList.toggle("hidden",screen!=="assessment"||cur?.batchId!==batch.id);
   $("scheduleScreen").classList.toggle("hidden",screen!=="schedule");
   $("lessonScreen").classList.toggle("hidden",screen!=="lesson");
   $("assessmentScreen").classList.toggle("hidden",screen!=="assessment");
@@ -263,17 +301,32 @@ function renderStatic(){
   $("sampleBox").hidden=task().id!=="alg7-sa1-exponents";
   renderUploadState();
   $("srcDemo").classList.toggle("on",src==="demo");$("srcMine").classList.toggle("on",src==="mine");
-  if(cur) renderCheck(); renderMap();
+  if(cur) renderCheck(); renderMap(); renderBatch();
 }
 
-function openDemo(id){const w=demo.works.find(x=>x.id===id);tid=w.taskId;cur={student:w.student,image:null,res:structuredClone(w.result),transcript:w.transcript,approved:false};cur.aiScore=scoreOf(cur.res);cur.aiHint=cur.res.hint;cur.aiDescriptors=structuredClone(cur.res.descriptors);renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"})}
+function openDemo(id){releaseCurPreviews();const w=demo.works.find(x=>x.id===id);tid=w.taskId;cur={student:w.student,image:null,res:structuredClone(w.result),transcript:w.transcript,approved:false};cur.aiScore=scoreOf(cur.res);cur.aiHint=cur.res.hint;cur.aiDescriptors=structuredClone(cur.res.descriptors);renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"})}
 const scoreOf=(r)=>r.descriptors.filter(d=>d.met).length;
 
+function renderPreview(){
+  const pages=cur?.images?.length?cur.images:cur?.image?[cur.image]:[];
+  const index=Math.max(0,Math.min(cur?.pageIndex||0,pages.length-1));
+  if(cur)cur.pageIndex=index;
+  $("prev").classList.toggle("hidden",!pages.length);
+  $("pageNav").classList.toggle("hidden",!pages.length);
+  $("pageNav").setAttribute("aria-label",t("workPages"));
+  if(pages.length){$("prev").src=pages[index];$("openPage").href=pages[index]}
+  else{$("prev").removeAttribute("src");$("openPage").removeAttribute("href")}
+  $("pageCount").textContent=pages.length?t("pageCount",index+1,pages.length):"";
+  $("previousPage").disabled=index===0;$("nextPage").disabled=index>=pages.length-1;
+  for(const id of ["previousPage","nextPage"]){$(id).setAttribute("aria-label",t(id));$(id).title=t(id)}
+}
+$("previousPage").onclick=()=>{if(cur){cur.pageIndex=(cur.pageIndex||0)-1;renderPreview()}};
+$("nextPage").onclick=()=>{if(cur){cur.pageIndex=(cur.pageIndex||0)+1;renderPreview()}};
 function renderCheck(){
   $("checkCard").classList.remove("hidden");
   const r=cur.res, ds=task().descriptors;
   $("who").textContent=cur.student+(r.variant&&r.variant!==""?` · ${t("variant")} ${r.variant}`:"");$("max").textContent=ds.length;$("score").textContent=cur.pending||cur.failed?"…":scoreOf(r);
-  $("prev").classList.toggle("hidden",!cur.image);if(cur.image)$("prev").src=cur.image;
+  renderPreview();
   $("transcript").textContent=cur.pending?t("checking"):(r.readable===false?t("unread"):(cur.transcript||r.transcript||""));
   $("descs").innerHTML=ds.map(d=>{const x=r.descriptors.find(y=>y.id===d.id)||{met:false,comment:""};
     return `<label class="desc"><input type="checkbox" data-d="${escapeHTML(d.id)}" ${x.met?"checked":""} ${cur.approved?"disabled":""}><span><b>${escapeHTML(d.id)}</b> ${escapeHTML(lang==="kk"?d.kk:d.text)}<br><span class="c">${escapeHTML(x.comment||"")}</span></span></label>`}).join("");
@@ -304,7 +357,7 @@ function renderMap(){
   $("bars").innerHTML=rows.map(([g,c])=>{const p=Math.round(100*c/n);return `<div class="bar"><span class="t">${escapeHTML(tagName(g))}</span><b>${c} · ${p}%</b><div class="track"><div class="fill" style="width:${p}%"></div></div></div>`}).join("");
   $("tips").innerHTML=rows.slice(0,2).map(([g])=>{const e=task().errorTags.find(x=>x.id===g);return e?`<div class="tip"><b>${escapeHTML(tagName(g))}</b><br>${escapeHTML(e.tip[lang])}</div>`:""}).join("");
 }
-function selectTask(id){tid=id;cur=null;$("checkCard").classList.add("hidden");src=task().variants||task().custom?"mine":"demo";renderStatic()}
+function selectTask(id){releaseCurPreviews();tid=id;cur=null;$("checkCard").classList.add("hidden");src=task().variants||task().custom?"mine":"demo";renderStatic()}
 $("taskSel").onchange=(e)=>selectTask(e.target.value);
 $("srcDemo").onclick=()=>{src="demo";renderStatic()};$("srcMine").onclick=()=>{src="mine";renderStatic()};
 $("csv").onclick=()=>{
@@ -317,7 +370,7 @@ document.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{lang=b.dataset.l
 
 function shrink(file){return new Promise((ok,no)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{URL.revokeObjectURL(url);try{const k=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))}catch(err){no(err)}};img.onerror=()=>{URL.revokeObjectURL(url);no(new Error(t("photoError")))};img.src=url})}
 function renderUploadState(){
-  const busy=checking||drafting;
+  const busy=checking||drafting||batchBusy;
   document.querySelectorAll("#customForm input,#customForm textarea,#customForm button").forEach(el=>el.disabled=busy);
   $("prepareDraft").textContent=t(drafting?"draftWorking":"prepareDraft");
   $("draftSources").setAttribute("aria-busy",String(drafting));
@@ -326,10 +379,10 @@ function renderUploadState(){
   $("file").disabled=busy||tid===NEW_CUSTOM;
   $("upLabel").setAttribute("aria-busy",String(checking));
   $("samplePhoto").setAttribute("aria-busy",String(checking));
-  [$("taskSel"),$("backSchedule"),$("startAssessment"),$("newCustom"),...document.querySelectorAll("[data-w]")].forEach(el=>el.disabled=busy);
+  [$("taskSel"),$("backSchedule"),$("startAssessment"),$("newCustom"),$("newBatch"),$("backBatch"),...document.querySelectorAll("[data-w]")].forEach(el=>el.disabled=busy);
 }
 $("prepareDraft").onclick=async()=>{
-  if(drafting||checking)return;
+  if(drafting||checking||batchBusy)return;
   if(!status.live){$("draftStatus").textContent=t("draftNoKey");return}
   const photos=[...$("draftImages").files],rubricPhotos=[...$("draftRubricImages").files];
   const text=$("customPrompt").value,rubricText=$("draftRubricText").value,requestLang=lang;
@@ -349,15 +402,15 @@ $("prepareDraft").onclick=async()=>{
   finally{drafting=false;renderUploadState()}
 };
 async function checkPhotos(loadFiles,student){
-  if(checking||drafting||tid===NEW_CUSTOM)return;
+  if(checking||drafting||batchBusy||tid===NEW_CUSTOM)return;
   if(!status.live){toast(t("noKey"));return}
   const taskId=task().id,requestLang=lang,customTask=task().definition;
-  checking=true;renderUploadState();
+  checking=true;renderUploadState();releaseCurPreviews();
   cur={student,image:null,res:{readable:true,transcript:"",descriptors:[],first_error:null,hint:"",error_tags:[]},aiScore:0,approved:true,pending:true};
   renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"});
   try{
     const files=await loadFiles(),images=await Promise.all(files.map(shrink));
-    cur.image=images[0];renderCheck();
+    cur.ownedPreviews=files.map(file=>URL.createObjectURL(file));cur.images=cur.ownedPreviews;cur.pageIndex=0;cur.image=cur.images[0];renderCheck();
     const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId,images,lang:requestLang,student,...(customTask?{customTask}:{})})});
     const d=await r.json();if(!r.ok)throw new Error(d.error||t("photoError"));
     cur.res=d;cur.transcript=d.transcript;cur.aiScore=scoreOf(d);cur.aiHint=d.hint;cur.aiDescriptors=structuredClone(d.descriptors);cur.approved=false;cur.pending=false;renderCheck();
@@ -374,6 +427,145 @@ $("samplePhoto").onclick=()=>checkPhotos(()=>Promise.all([1,2].map(async(page)=>
   if(!r.ok)throw new Error(t("photoError"));
   return r.blob();
 })),t("sampleStudent"));
+
+
+function batchGroups(){
+  const groups=new Map();
+  if(!batch.photos.length||batch.photos.length>120)return null;
+  for(let i=0;i<batch.photos.length;i++){
+    const photo=batch.photos[i],id=photo.group;
+    if(!Number.isInteger(id)||id<1||id>30||(photo.file.type&&!photo.file.type.startsWith("image/")))return null;
+    if(!groups.has(id))groups.set(id,[]);
+    groups.get(id).push(i);if(groups.get(id).length>4)return null;
+  }
+  return [...groups].sort((a,b)=>a[0]-b[0]);
+}
+const batchFilesFor=row=>row.replacement?.files||row.indices.map(i=>batch.photos[i].file);
+const batchURLsFor=row=>row.replacement?.urls||row.indices.map(i=>batch.photos[i].url);
+function batchApproval(row){return store.get().find(x=>x.taskId===row.id&&x.student===row.student)}
+function batchDetails(row){
+  const approved=batchApproval(row),result=row.result;
+  if(!result)return {approved:null,score:null,max:null,error:row.error||"",hint:""};
+  const tags=approved?.tags||result.error_tags;
+  const error=approved?tags.map(id=>row.task.descriptors[Number(id.slice(1))-1]||id).join("; "):(result.first_error?.text||"");
+  return {approved,score:approved?approved.score:scoreOf(result),max:row.task.descriptors.length,error:error||t("noErr"),hint:approved?approved.hint:result.hint};
+}
+function renderBatch(){
+  const groups=batchGroups(),eligible=batch.rows.filter(r=>r.state!=="ready");
+  $("batchRules").textContent=t("batchRules",status.batchLimitPerHour||30);
+  $("batchConfig").disabled=batch.started||batchBusy;
+  $("batchGrouping").innerHTML=batch.photos.map((photo,i)=>`<div class="batch-photo"><img src="${escapeHTML(photo.url)}" alt="" loading="lazy"><label>${escapeHTML(t("batchPhoto",i+1))}<input data-page="${i}" type="number" min="1" max="30" value="${Number.isInteger(photo.group)?photo.group:""}" ${batch.started?"disabled":""}><br><small>${escapeHTML(photo.file.name)}</small></label></div>`).join("");
+  document.querySelectorAll("#batchGrouping [data-page]").forEach(input=>input.onchange=()=>{
+    batch.photos[Number(input.dataset.page)].group=Number(input.value);renderBatch();
+  });
+  $("batchSummary").textContent=groups?t("batchGroupSummary",batch.photos.length,groups.length):(batch.photos.length?t("batchGroupError"):"");
+  $("batchNotice").textContent=batchBusy?(batch.stop?t("batchStopping"):t("batchChecking")):(!status.live?t("batchNoKey"):batch.message);
+  $("batchStart").disabled=batchBusy||checking||drafting||!groups;
+  $("batchStart").hidden=batch.started&&!eligible.length;
+  $("batchStart").textContent=t(!batch.started?"batchStart":batch.rows.some(r=>r.state==="pending")?"batchContinue":"batchRetry");
+  $("batchStop").disabled=!batchBusy||batch.stop;
+  $("batchReset").disabled=batchBusy;
+  $("batchReport").classList.toggle("hidden",!batch.rows.length);
+  const done=batch.rows.filter(r=>r.state==="ready"),errors=batch.rows.filter(r=>r.state==="error");
+  const approved=done.map(batchApproval).filter(Boolean),unchanged=approved.filter(a=>a.edited===false).length;
+  $("batchProgress").textContent=t("batchProgress",done.length,batch.rows.length,errors.length,approved.length);
+  $("batchAgreement").classList.toggle("hidden",!approved.length);
+  $("batchAgreement").textContent=approved.length?t("agreement",Math.round(100*unchanged/approved.length),unchanged,approved.length):"";
+  $("batchCSV").disabled=batchBusy||!batch.rows.length;
+  $("batchRows").innerHTML=batch.rows.map((row,index)=>{
+    const d=batchDetails(row),ready=row.state==="ready";
+    const state=t(d.approved?"batchApproved":ready?"batchReady":row.state==="checking"?"batchChecking":row.state==="error"?"batchErrorStatus":"batchPending");
+    return `<article class="batch-row"><div class="row"><h3>${escapeHTML(row.student)}</h3><span class="badge">${escapeHTML(state)}</span></div>${ready?`<p><b>${escapeHTML(t("batchScore"))}: ${d.score} / ${d.max} · ${Math.round(100*d.score/d.max)}%</b></p><p>${escapeHTML(t("batchErrors"))}: ${escapeHTML(d.error)}</p><p>${escapeHTML(t("batchHint"))}: ${escapeHTML(d.hint)}</p><details><summary>${escapeHTML(t("batchKey"))}</summary><p>${escapeHTML(row.task.title)}</p><pre>${escapeHTML(row.task.prompt)}</pre><pre>${escapeHTML(row.task.answer)}</pre><ol>${row.task.descriptors.map(d=>`<li>${escapeHTML(d)}</li>`).join("")}</ol></details><button data-review="${index}" ${batchBusy?"disabled":""}>${escapeHTML(t("batchReview"))}</button>`:row.error?`<p class="err">${escapeHTML(row.error)}</p>`:""}${!ready?`<p><label class="btn">${escapeHTML(t("batchReplace"))}<input data-replace="${index}" type="file" accept="image/*" multiple hidden ${batchBusy?"disabled":""}></label></p>${row.replacement?`<p class="mut">${escapeHTML(t("batchReplacement",row.replacement.files.length))}</p><div class="row">${row.replacement.urls.map(url=>`<img src="${escapeHTML(url)}" alt="" style="width:52px;height:68px;object-fit:contain">`).join("")}</div>`:""}`:""}</article>`;
+  }).join("");
+  document.querySelectorAll("#batchRows [data-replace]").forEach(input=>input.onchange=()=>{
+    if(batchBusy)return;
+    const row=batch.rows[Number(input.dataset.replace)],files=[...input.files];if(!files.length)return;
+    if(files.length>4||files.some(f=>f.type&&!f.type.startsWith("image/"))){row.error=t("batchReplaceError");renderBatch();return}
+    row.replacement?.urls.forEach(url=>URL.revokeObjectURL(url));
+    row.replacement={files,urls:files.map(file=>URL.createObjectURL(file))};row.state="pending";row.error="";renderBatch();
+  });
+  document.querySelectorAll("#batchRows [data-review]").forEach(button=>button.onclick=()=>reviewBatchRow(Number(button.dataset.review)));
+}
+$("newBatch").onclick=()=>{renderBatch();showScreen("batch")};
+$("backBatch").onclick=()=>{renderBatch();showScreen("batch")};
+$("batchReset").onclick=()=>{
+  if(batchBusy)return;
+  if(cur?.batchId===batch.id){cur=null;$("prev").removeAttribute("src");$("checkCard").classList.add("hidden");$("backBatch").classList.add("hidden")}
+  batch.photos.forEach(p=>URL.revokeObjectURL(p.url));
+  batch.rows.forEach(row=>row.replacement?.urls.forEach(url=>URL.revokeObjectURL(url)));
+  batch={id:crypto.randomUUID(),photos:[],rows:[],started:false,stop:false,message:""};
+  $("batchFiles").value="";$("batchPages").value="2";$("batchRubricText").value="";renderBatch();
+};
+$("batchFiles").onchange=e=>{
+  if(batch.started||batchBusy)return;
+  batch.photos.forEach(p=>URL.revokeObjectURL(p.url));
+  const pages=Number($("batchPages").value),files=[...e.target.files];
+  if(files.length>120){batch.photos=[];batch.message=t("batchGroupError");$("batchFiles").value="";renderBatch();return}
+  batch.photos=files.map((file,i)=>({file,url:URL.createObjectURL(file),group:Math.floor(i/pages)+1}));renderBatch();
+};
+$("batchPages").onchange=()=>{
+  if(batch.started||batchBusy)return;
+  const pages=Number($("batchPages").value);
+  batch.photos.forEach((photo,i)=>photo.group=Math.floor(i/pages)+1);renderBatch();
+};
+$("batchStop").onclick=()=>{batch.stop=true;renderBatch()};
+$("batchStart").onclick=async()=>{
+  if(batchBusy||checking||drafting)return;
+  if(!status.live){batch.message=t("batchNoKey");renderBatch();return}
+  const groups=batchGroups();if(!groups){batch.message=t("batchGroupError");renderBatch();return}
+  if(!batch.started){
+    batch.rows=groups.map(([group,indices])=>({id:`custom-${batch.id}-${group}`,student:"У-"+String(group).padStart(2,"0"),indices,state:"pending",error:"",task:null,result:null}));
+    batch.started=true;
+  }
+  const queue=batch.rows.filter(row=>row.state!=="ready"),requestLang=lang,rubricText=$("batchRubricText").value;
+  batchBusy=true;batch.stop=false;batch.message="";renderUploadState();renderBatch();
+  try{
+    for(const row of queue){
+      if(batch.stop)break;
+      row.state="checking";row.error="";renderBatch();
+      try{
+        const images=[];for(const file of batchFilesFor(row))images.push(await shrink(file));
+        const r=await fetch("/api/batch-check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({images,rubricText,lang:requestLang})});
+        const data=await r.json().catch(()=>null);
+        if(!r.ok)throw Object.assign(new Error(),{status:r.status,userMessage:typeof data?.error==="string"?data.error:t("batchFailed")});
+        const definition=customTaskFrom({...data?.task,id:row.id}),result=data?.result;
+        if(!definition||!result||result.readable!==true||typeof result.hint!=="string"||typeof result.transcript!=="string"||!Array.isArray(result.descriptors)||result.descriptors.length!==definition.descriptors.length||definition.descriptors.some(d=>result.descriptors.filter(x=>x?.id===d.id&&typeof x.met==="boolean").length!==1))throw new Error();
+        result.error_tags=result.descriptors.filter(d=>!d.met).map(d=>d.id);
+        row.task=definition.definition;row.result=result;row.state="ready";
+      }catch(err){
+        row.state="error";row.error=err.userMessage||t("batchFailed");
+        if(err.status===429||err.status===503){batch.stop=true;batch.message=row.error}
+      }
+      renderBatch();
+    }
+  }finally{
+    batchBusy=false;if(!batch.message)batch.message=t(batch.stop?"batchStopped":"batchDone");renderUploadState();renderBatch();
+  }
+};
+function reviewBatchRow(index){
+  if(batchBusy)return;
+  const row=batch.rows[index];if(row?.state!=="ready")return;
+  const definition=customTaskFrom({...row.task,id:row.id});
+  if(!tasks.some(t=>t.id===row.id)){
+    tasks.push(definition);
+    try{localStorage.setItem("tekser.customTasks",JSON.stringify(tasks.filter(t=>t.custom).map(t=>t.definition)))}catch{toast(t("customLocalOnly"))}
+  }
+  selectTask(row.id);
+  const result=structuredClone(row.result),approved=batchApproval(row);
+  const aiDescriptors=structuredClone(result.descriptors),aiHint=result.hint,aiScore=scoreOf(result);
+  if(approved){result.descriptors.forEach(d=>d.met=!approved.tags.includes(d.id));result.hint=approved.hint;result.error_tags=[...approved.tags]}
+  cur={student:row.student,images:batchURLsFor(row),pageIndex:0,image:batchURLsFor(row)[0]||null,res:result,transcript:result.transcript,approved:false,aiDescriptors,aiHint,aiScore,batchId:batch.id};
+  renderStatic();showScreen("assessment");
+}
+$("batchCSV").onclick=()=>{
+  const rows=[[t("batchStudent"),t("batchStatus"),t("batchTask"),t("batchScore"),t("batchMax"),t("batchPercent"),t("batchErrors"),t("batchHint")],...batch.rows.map(row=>{
+    const d=batchDetails(row),ready=row.state==="ready";
+    return [row.student,ready?t(d.approved?"batchApproved":"batchReady"):(row.error||t("batchPending")),row.task?.title||"",ready?d.score:"",ready?d.max:"",ready?Math.round(100*d.score/d.max):"",d.error,d.hint];
+  })];
+  const cell=value=>{let s=String(value??"");if(/^[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'};
+  const url=URL.createObjectURL(new Blob(["\uFEFF"+rows.map(row=>row.map(cell).join(";")).join("\n")],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download="tekser-class-report.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
 
 Promise.all([fetch("/api/tasks").then(r=>r.json()),fetch("/api/demo").then(r=>r.json()),fetch("/api/status").then(r=>r.json()),fetch("/api/schedule").then(r=>r.json())])
   .then(([a,b,c,d])=>{tasks=a;demo=b;status=c;schedule=d;
