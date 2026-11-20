@@ -199,7 +199,8 @@ const T = {
     unread:"Фото оқылмайды — жақсы жарықта қайта түсіріңіз.",privacy:"Фотолар серверде сақталмайды. Тек ойдан алынған немесе иесіз деректер; оқушылар — кодтар."}
 };
 let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null, schedule=[], lesson=null, screen="schedule", checking=false, drafting=false;
-let batchBusy=false, batch={id:crypto.randomUUID(),photos:[],rows:[],started:false,stop:false,message:""};
+const uid=()=>(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,10));
+let batchBusy=false, batch={id:uid(),photos:[],rows:[],started:false,stop:false,message:""};
 const $=(id)=>document.getElementById(id), t=(k,...a)=>{const v=T[lang][k];return typeof v==="function"?v(...a):v};
 const store={
   get(){if(memoryOnly)return mem;try{const value=JSON.parse(localStorage.getItem("tekser.approved")||"[]");return Array.isArray(value)?value:mem}catch{return mem}},
@@ -223,7 +224,7 @@ const task=()=>tid===NEW_CUSTOM?{id:NEW_CUSTOM,custom:true,title:{ru:T.ru.custom
 $("newCustom").onclick=()=>{selectTask(NEW_CUSTOM);showScreen("assessment")};
 $("customForm").onsubmit=(e)=>{
   e.preventDefault();
-  const value={id:"custom-"+crypto.randomUUID(),title:$("customTitle").value,prompt:$("customPrompt").value,answer:$("customAnswer").value,descriptors:$("customDescriptors").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)};
+  const value={id:"custom-"+uid(),title:$("customTitle").value,prompt:$("customPrompt").value,answer:$("customAnswer").value,descriptors:$("customDescriptors").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)};
   const created=customTaskFrom(value);
   if(!created){toast(t("customInvalid"));return}
   tasks.push(created);
@@ -493,7 +494,7 @@ $("batchReset").onclick=()=>{
   if(cur?.batchId===batch.id){cur=null;$("prev").removeAttribute("src");$("checkCard").classList.add("hidden");$("backBatch").classList.add("hidden")}
   batch.photos.forEach(p=>URL.revokeObjectURL(p.url));
   batch.rows.forEach(row=>row.replacement?.urls.forEach(url=>URL.revokeObjectURL(url)));
-  batch={id:crypto.randomUUID(),photos:[],rows:[],started:false,stop:false,message:""};
+  batch={id:uid(),photos:[],rows:[],started:false,stop:false,message:""};
   $("batchFiles").value="";$("batchPages").value="2";$("batchRubricText").value="";renderBatch();
 };
 $("batchFiles").onchange=e=>{
