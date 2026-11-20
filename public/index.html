@@ -11,7 +11,7 @@
 header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 h1{font-size:20px;margin:0}h1 small{font-weight:400;color:var(--mut);font-size:13px;margin-left:6px}
 h2{font-size:17px;margin:0 0 10px}main{max-width:980px;margin:0 auto;padding:16px;display:grid;gap:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card{min-width:0;overflow-wrap:anywhere;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 button,label.btn{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px;cursor:pointer}
 button.primary,label.primary{background:var(--acc);border-color:var(--acc);color:#fff}button:disabled{opacity:.5;cursor:default}
@@ -20,7 +20,7 @@ button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .parts{margin:8px 0 0;padding-left:20px}.parts li{margin:2px 0}
 pre{white-space:pre-wrap;background:#fafafa;border:1px dashed var(--line);border-radius:8px;padding:10px;font:15px/1.5 "Comic Sans MS","Segoe Print",cursive;margin:8px 0}
 .desc{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.desc input{width:20px;height:20px;margin-top:2px}
-.desc .c{color:var(--mut);font-size:14px}.score{font-size:22px;font-weight:700}
+.desc span{min-width:0;overflow-wrap:anywhere}.desc .c{color:var(--mut);font-size:14px}.score{font-size:22px;font-weight:700}
 .err{background:#fff5f4;border-left:4px solid var(--bad);padding:8px 10px;border-radius:6px;margin:10px 0}
 .okbox{background:#f1fbf5;border-left:4px solid var(--ok);padding:8px 10px;border-radius:6px;margin:10px 0}
 textarea{width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px}
@@ -55,6 +55,7 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
         <summary data-i="quickStart"></summary>
         <p class="mut" data-i="quickSteps"></p>
       </details>
+      <p><button id="newCustom" data-i="customNew"></button></p>
       <div id="weekGrid" class="week"></div>
     </section>
   </div>
@@ -75,6 +76,15 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
   <section class="card">
     <h2 data-i="s1"></h2>
     <select id="taskSel" style="font:inherit;padding:6px;border-radius:8px;border:1px solid var(--line);width:100%;margin-bottom:6px"></select>
+    <form id="customForm" class="hidden">
+      <h3 data-i="customNew"></h3>
+      <p class="mut" data-i="customHelp"></p>
+      <p><label for="customTitle" data-i="customTitle"></label><input id="customTitle" required maxlength="120" style="width:100%;font:inherit;padding:8px"></p>
+      <p><label for="customPrompt" data-i="customPrompt"></label><textarea id="customPrompt" required maxlength="10000" rows="3"></textarea></p>
+      <p><label for="customAnswer" data-i="customAnswer"></label><textarea id="customAnswer" required maxlength="10000" rows="3"></textarea></p>
+      <p><label for="customDescriptors" data-i="customDescriptors"></label><textarea id="customDescriptors" required maxlength="15030" rows="4"></textarea></p>
+      <button id="saveCustom" type="submit" class="primary" data-i="saveCustom"></button>
+    </form>
     <div id="taskTitle" class="mut"></div>
     <ol id="parts" class="parts"></ol>
     <p class="mut" data-i="demoHelp" id="demoHelp"></p>
@@ -122,7 +132,7 @@ img.prev{max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(
 <script>
 const T = {
   // Код вымышленного ученика одинаков в обоих языках.
-  ru:{desk:"Рабочий стол учителя",scheduleTitle:"Расписание · 7«А» · Алгебра",backSchedule:"← Расписание",goal:"Цель урока",slides:"Презентация",assessment:"Задание",startAssessment:"Проверить БЖБ/СОР",days:{mon:"Понедельник",tue:"Вторник",wed:"Среда",thu:"Четверг",fri:"Пятница"},agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
+  ru:{customNew:"Любой СОР/БЖБ",customHelp:"Введите своё задание и эталон. Каждый дескриптор — отдельная строка и 1 балл (до 30). Затем загрузите фото работ. Задание хранится только в этом браузере; для проверки нужен API-ключ.",customTitle:"Название задания",customPrompt:"Условие задания",customAnswer:"Эталон ответа и ход решения",customDescriptors:"Дескрипторы (по одному на строку)",saveCustom:"Сохранить задание и перейти к фото",customInvalid:"Заполните все поля: название до 120 знаков, условие и эталон до 10 000, от 1 до 30 дескрипторов по 500 знаков.",resultLocalOnly:"Результат сохранён только до перезагрузки: хранилище браузера недоступно.",customLocalOnly:"Хранилище браузера недоступно: задание сохранено только до перезагрузки.",criterionError:(text)=>`Не выполнено: ${text}`,criterionTip:"Повторите этот шаг на похожем задании.",desk:"Рабочий стол учителя",scheduleTitle:"Расписание · 7«А» · Алгебра",backSchedule:"← Расписание",goal:"Цель урока",slides:"Презентация",assessment:"Задание",startAssessment:"Проверить БЖБ/СОР",days:{mon:"Понедельник",tue:"Вторник",wed:"Среда",thu:"Четверг",fri:"Пятница"},agreement:(x,n,m)=>`Согласие учителя с ИИ: ${x}% (${n} из ${m} работ утверждены без правок)`,savedTime:(k)=>`Сэкономлено ≈ ${k} мин`,timeEstimate:"оценка: 5 мин вручную против 1 мин с Тексером",sub:"проверка БЖБ/ТЖБ по дескрипторам",s1:"1. Работа ученика",s2:"2. Проверка ИИ → решение учителя",s3:"3. Карта ошибок класса",
     accuracy:"Точность на тестовой работе: 20 из 20 дескрипторов совпали с оценкой учителя",
     quickStart:"Как попробовать за 1 минуту",quickSteps:"Среда → Проверить → Работа А (или Пятница → пример фото) → ✓ Утвердить → Карта ошибок.",
     samplePhoto:"🧪 Проверить пример фото (вымышленный ученик, 2 стр.)",sampleNote:"Настоящая проверка ИИ, ~15 сек",sampleStudent:"Пример",
@@ -134,7 +144,7 @@ const T = {
     empty:"Пока нет утверждённых работ.",live:(m)=>`ИИ: ${m}`,demoOnly:"Демо-режим",noKey:"Загрузка своих фото выключена (нет ключа API).",
     checking:"ИИ проверяет фото… (10–30 с)",sent:"Демо: сообщение ученику сформировано, ничего не отправлено.",aiScore:(s)=>`Балл ИИ: ${s}`,
     unread:"Фото нечитаемо — переснимите при хорошем свете.",privacy:"Фото не сохраняются на сервере. Только вымышленные или обезличенные данные; ученики — коды."},
-  kk:{desk:"Мұғалімнің жұмыс үстелі",scheduleTitle:"Сабақ кестесі · 7«А» · Алгебра",backSchedule:"← Сабақ кестесі",goal:"Сабақтың мақсаты",slides:"Презентация",assessment:"Тапсырма",startAssessment:"БЖБ тексеру",days:{mon:"Дүйсенбі",tue:"Сейсенбі",wed:"Сәрсенбі",thu:"Бейсенбі",fri:"Жұма"},agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
+  kk:{customNew:"Кез келген БЖБ",customHelp:"Өз тапсырмаңыз бен үлгі жауабын енгізіңіз. Әр дескриптор — жеке жол және 1 ұпай (30-ға дейін). Содан кейін жұмыс фотоларын жүктеңіз. Тапсырма тек осы браузерде сақталады; тексеру үшін API кілті қажет.",customTitle:"Тапсырманың атауы",customPrompt:"Тапсырманың шарты",customAnswer:"Үлгі жауап және шешу жолы",customDescriptors:"Дескрипторлар (әр жолға біреу)",saveCustom:"Тапсырманы сақтап, фотоға өту",customInvalid:"Барлық өрісті толтырыңыз: атау 120, шарт пен жауап 10 000 таңбаға дейін, әрқайсысы 500 таңбадан аспайтын 1–30 дескриптор.",resultLocalOnly:"Нәтиже бет жаңартылғанша ғана сақталады: браузер қоймасы қолжетімсіз.",customLocalOnly:"Браузер қоймасы қолжетімсіз: тапсырма бет жаңартылғанша ғана сақталады.",criterionError:(text)=>`Орындалмады: ${text}`,criterionTip:"Осы қадамды ұқсас тапсырмада қайталаңыз.",desk:"Мұғалімнің жұмыс үстелі",scheduleTitle:"Сабақ кестесі · 7«А» · Алгебра",backSchedule:"← Сабақ кестесі",goal:"Сабақтың мақсаты",slides:"Презентация",assessment:"Тапсырма",startAssessment:"БЖБ тексеру",days:{mon:"Дүйсенбі",tue:"Сейсенбі",wed:"Сәрсенбі",thu:"Бейсенбі",fri:"Жұма"},agreement:(x,n,m)=>`Мұғалімнің ЖИ-мен келісімі: ${x}% (${m} жұмыстың ${n}-і түзетусіз бекітілді)`,savedTime:(k)=>`Үнемделді ≈ ${k} мин`,timeEstimate:"бағалау: қолмен 5 мин, Тексермен 1 мин",sub:"БЖБ/ТЖБ дескрипторлар бойынша тексеру",s1:"1. Оқушы жұмысы",s2:"2. ЖИ тексеруі → мұғалім шешімі",s3:"3. Сыныптың қателер картасы",
     accuracy:"Сынақ жұмысындағы дәлдік: 20 дескриптордың 20-сы мұғалімнің бағасымен сәйкес келді",
     quickStart:"1 минутта қалай сынап көруге болады",quickSteps:"Сәрсенбі → Тексеру → А жұмысы (немесе Жұма → фото үлгісі) → ✓ Бекіту → Қателер картасы.",
     samplePhoto:"🧪 Фото үлгісін тексеру (ойдан алынған оқушы, 2 бет)",sampleNote:"ЖИ арқылы нақты тексеру, ~15 сек",sampleStudent:"Пример",
@@ -149,9 +159,30 @@ const T = {
 };
 let lang="ru", tasks=[], demo=null, status={}, cur=null, src="demo", tid=null, schedule=[], lesson=null, screen="schedule", checking=false;
 const $=(id)=>document.getElementById(id), t=(k,...a)=>{const v=T[lang][k];return typeof v==="function"?v(...a):v};
-const store={get(){try{return JSON.parse(localStorage.getItem("tekser.approved")||"[]")}catch{return mem}},set(v){mem=v;try{localStorage.setItem("tekser.approved",JSON.stringify(v))}catch{}}};
-let mem=[];
-const task=()=>tasks.find(t=>t.id===tid)||tasks[0];
+const store={
+  get(){if(memoryOnly)return mem;try{const value=JSON.parse(localStorage.getItem("tekser.approved")||"[]");return Array.isArray(value)?value:mem}catch{return mem}},
+  set(v){mem=v;try{localStorage.setItem("tekser.approved",JSON.stringify(v));memoryOnly=false;return true}catch{memoryOnly=true;return false}}
+};
+let mem=[],memoryOnly=false;
+const NEW_CUSTOM="new-custom";
+const escapeHTML=(v)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+function customTaskFrom(value){
+  const text=(v,max)=>typeof v==="string"&&v.trim().length>0&&v.length<=max;
+  if(!value||typeof value.id!=="string"||!/^custom-[a-zA-Z0-9-]{1,80}$/.test(value.id)||!text(value.title,120)||!text(value.prompt,10000)||!text(value.answer,10000)||!Array.isArray(value.descriptors)||!value.descriptors.length||value.descriptors.length>30||!value.descriptors.every(d=>text(d,500)))return null;
+  const definition={id:value.id,title:value.title.trim(),prompt:value.prompt.trim(),answer:value.answer.trim(),descriptors:value.descriptors.map(d=>d.trim())};
+  return {id:definition.id,custom:true,definition,title:{ru:definition.title,kk:definition.title},parts:[{id:"1",text:definition.prompt,answer:definition.answer}],descriptors:definition.descriptors.map((text,i)=>({id:`D${i+1}`,part:"1",text,kk:text})),errorTags:definition.descriptors.map((text,i)=>({id:`D${i+1}`,ru:T.ru.criterionError(text),kk:T.kk.criterionError(text),tip:{ru:T.ru.criterionTip,kk:T.kk.criterionTip}}))};
+}
+const task=()=>tid===NEW_CUSTOM?{id:NEW_CUSTOM,custom:true,title:{ru:T.ru.customNew,kk:T.kk.customNew},parts:[],descriptors:[],errorTags:[]}:tasks.find(t=>t.id===tid)||tasks[0];
+$("newCustom").onclick=()=>{selectTask(NEW_CUSTOM);showScreen("assessment")};
+$("customForm").onsubmit=(e)=>{
+  e.preventDefault();
+  const value={id:"custom-"+crypto.randomUUID(),title:$("customTitle").value,prompt:$("customPrompt").value,answer:$("customAnswer").value,descriptors:$("customDescriptors").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)};
+  const created=customTaskFrom(value);
+  if(!created){toast(t("customInvalid"));return}
+  tasks.push(created);
+  try{localStorage.setItem("tekser.customTasks",JSON.stringify(tasks.filter(x=>x.custom).map(x=>x.definition)))}catch{toast(t("customLocalOnly"))}
+  $("customForm").reset();selectTask(created.id);
+};
 const mine=()=>store.get().filter(x=>(x.taskId||tasks[0].id)===task().id);
 const tagName=(id)=>{const e=task().errorTags.find(x=>x.id===id);return e?(lang==="kk"?e.kk:e.ru):id};
 function toast(m){const el=$("toast");el.textContent=m;el.style.display="block";clearTimeout(el._t);el._t=setTimeout(()=>el.style.display="none",3500)}
@@ -209,11 +240,13 @@ function renderStatic(){
   $("status").textContent=status.live?t("live",status.model):t("demoOnly");
   $("upNote").textContent=status.live?"":t("noKey");
   $("upLabel").style.opacity=status.live?1:.5;
-  $("taskSel").innerHTML=tasks.map(t=>`<option value="${t.id}" ${t.id===task().id?"selected":""}>${t.title[lang]}</option>`).join("");
+  $("taskSel").innerHTML=tasks.map(item=>`<option value="${escapeHTML(item.id)}" ${item.id===task().id?"selected":""}>${escapeHTML(item.title[lang])}</option>`).join("")+`<option value="${NEW_CUSTOM}" ${tid===NEW_CUSTOM?"selected":""}>${t("customNew")}</option>`;
+  $("customForm").classList.toggle("hidden",tid!==NEW_CUSTOM);
+  $("srcDemo").hidden=Boolean(task().custom);
   const vs=task().variants;
-  $("demoHelp").style.display=vs?"none":"";
+  $("demoHelp").style.display=vs||task().custom?"none":"";
   $("taskTitle").textContent=vs?t("variants",Object.keys(vs).join(", ")):"";
-  $("parts").innerHTML=(vs?Object.values(vs)[0]:task().parts).map(p=>`<li>${p.text}</li>`).join("");
+  $("parts").innerHTML=(vs?Object.values(vs)[0]:task().parts).map(p=>`<li>${escapeHTML(p.text)}</li>`).join("");
   $("demoBtns").innerHTML=demo.works.filter(w=>w.taskId===task().id).map(w=>`<button data-w="${w.id}">${t("work")} ${({A:"А",B:"Б",C:"В"})[w.id]} · ${w.student}</button>`).join("");
   document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>openDemo(b.dataset.w));
   $("sampleBox").hidden=task().id!=="alg7-sa1-exponents";
@@ -232,19 +265,20 @@ function renderCheck(){
   $("prev").classList.toggle("hidden",!cur.image);if(cur.image)$("prev").src=cur.image;
   $("transcript").textContent=cur.pending?t("checking"):(r.readable===false?t("unread"):(cur.transcript||r.transcript||""));
   $("descs").innerHTML=ds.map(d=>{const x=r.descriptors.find(y=>y.id===d.id)||{met:false,comment:""};
-    return `<label class="desc"><input type="checkbox" data-d="${d.id}" ${x.met?"checked":""} ${cur.approved?"disabled":""}><span><b>${d.id}</b> ${lang==="kk"?d.kk:d.text}<br><span class="c">${x.comment||""}</span></span></label>`}).join("");
+    return `<label class="desc"><input type="checkbox" data-d="${escapeHTML(d.id)}" ${x.met?"checked":""} ${cur.approved?"disabled":""}><span><b>${escapeHTML(d.id)}</b> ${escapeHTML(lang==="kk"?d.kk:d.text)}<br><span class="c">${escapeHTML(x.comment||"")}</span></span></label>`}).join("");
   document.querySelectorAll("[data-d]").forEach(c=>c.onchange=()=>{r.descriptors.find(y=>y.id===c.dataset.d).met=c.checked;$("score").textContent=scoreOf(r)});
   $("errBox").hidden=Boolean(cur.pending||cur.failed);
-  $("errBox").innerHTML=r.first_error?`<div class="err"><b>${t("firstErr")} (${r.first_error.part}):</b> ${r.first_error.text}${r.error_tags.length?`<br><span class="mut">${r.error_tags.map(tagName).join(" · ")}</span>`:""}</div>`:`<div class="okbox">${t("noErr")}</div>`;
+  $("errBox").innerHTML=r.first_error?`<div class="err"><b>${t("firstErr")} (${escapeHTML(r.first_error.part)}):</b> ${escapeHTML(r.first_error.text)}${r.error_tags.length?`<br><span class="mut">${r.error_tags.map(tagName).map(escapeHTML).join(" · ")}</span>`:""}</div>`:`<div class="okbox">${t("noErr")}</div>`;
   $("hint").value=r.hint;$("hint").disabled=cur.approved;
   $("approve").disabled=cur.approved;$("aiNote").textContent=cur.pending||cur.failed?"":t("aiScore",cur.aiScore);
 }
 
 $("approve").onclick=()=>{
   const r=cur.res, hintEdited=$("hint").value!==cur.aiHint;r.hint=$("hint").value.trim();cur.approved=true;
+  if(task().custom)r.error_tags=r.descriptors.filter(d=>!d.met).map(d=>d.id);
   const list=store.get().filter(x=>!(x.student===cur.student&&(x.taskId||tasks[0].id)===task().id));
   list.push({taskId:task().id,variant:r.variant||"",student:cur.student,score:scoreOf(r),aiScore:cur.aiScore,edited:r.descriptors.some(d=>d.met!==cur.aiDescriptors.find(x=>x.id===d.id)?.met)||hintEdited,tags:r.error_tags,hint:r.hint,ts:Date.now()});
-  store.set(list);renderCheck();src="mine";renderStatic();toast(t("sent"));
+  const persisted=store.set(list);renderCheck();src="mine";renderStatic();toast(t(persisted?"sent":"resultLocalOnly"));
 };
 
 function renderMap(){
@@ -253,13 +287,14 @@ function renderMap(){
   $("agreement").textContent=total?t("agreement",Math.round(100*unchanged/total),unchanged,total):"";
   $("savedTime").textContent=total?t("savedTime",total*4):"";
   let counts={},n=0;
-  if(src==="demo"){counts=demo.demoClass.tagCounts;n=demo.demoClass.students;$("mapInfo").textContent=t("mapDemo",n)}
+  if(src==="demo"&&!task().custom){counts=demo.demoClass.tagCounts;n=demo.demoClass.students;$("mapInfo").textContent=t("mapDemo",n)}
   else{const l=mine();n=l.length;l.forEach(x=>x.tags.forEach(g=>counts[g]=(counts[g]||0)+1));$("mapInfo").textContent=n?t("mapMine",n):t("empty")}
   const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  $("bars").innerHTML=rows.map(([g,c])=>{const p=Math.round(100*c/n);return `<div class="bar"><span class="t">${tagName(g)}</span><b>${c} · ${p}%</b><div class="track"><div class="fill" style="width:${p}%"></div></div></div>`}).join("");
-  $("tips").innerHTML=rows.slice(0,2).map(([g])=>{const e=task().errorTags.find(x=>x.id===g);return e?`<div class="tip"><b>${tagName(g)}</b><br>${e.tip[lang]}</div>`:""}).join("");
+  $("bars").innerHTML=rows.map(([g,c])=>{const p=Math.round(100*c/n);return `<div class="bar"><span class="t">${escapeHTML(tagName(g))}</span><b>${c} · ${p}%</b><div class="track"><div class="fill" style="width:${p}%"></div></div></div>`}).join("");
+  $("tips").innerHTML=rows.slice(0,2).map(([g])=>{const e=task().errorTags.find(x=>x.id===g);return e?`<div class="tip"><b>${escapeHTML(tagName(g))}</b><br>${escapeHTML(e.tip[lang])}</div>`:""}).join("");
 }
-$("taskSel").onchange=(e)=>{tid=e.target.value;cur=null;$("checkCard").classList.add("hidden");src=task().variants?"mine":"demo";renderStatic()};
+function selectTask(id){tid=id;cur=null;$("checkCard").classList.add("hidden");src=task().variants||task().custom?"mine":"demo";renderStatic()}
+$("taskSel").onchange=(e)=>selectTask(e.target.value);
 $("srcDemo").onclick=()=>{src="demo";renderStatic()};$("srcMine").onclick=()=>{src="mine";renderStatic()};
 $("csv").onclick=()=>{
   const l=mine(), ds=task().descriptors.length;
@@ -272,22 +307,22 @@ document.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{lang=b.dataset.l
 function shrink(file){return new Promise((ok,no)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{URL.revokeObjectURL(url);try{const k=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))}catch(err){no(err)}};img.onerror=()=>{URL.revokeObjectURL(url);no(new Error(t("photoError")))};img.src=url})}
 function renderUploadState(){
   $("samplePhoto").disabled=checking||!status.live;
-  $("file").disabled=checking;
+  $("file").disabled=checking||tid===NEW_CUSTOM;
   $("upLabel").setAttribute("aria-busy",String(checking));
   $("samplePhoto").setAttribute("aria-busy",String(checking));
-  [$("taskSel"),$("backSchedule"),$("startAssessment"),...document.querySelectorAll("[data-w]")].forEach(el=>el.disabled=checking);
+  [$("taskSel"),$("backSchedule"),$("startAssessment"),$("newCustom"),...document.querySelectorAll("[data-w]")].forEach(el=>el.disabled=checking);
 }
 async function checkPhotos(loadFiles,student){
-  if(checking)return;
+  if(checking||tid===NEW_CUSTOM)return;
   if(!status.live){toast(t("noKey"));return}
-  const taskId=task().id,requestLang=lang;
+  const taskId=task().id,requestLang=lang,customTask=task().definition;
   checking=true;renderUploadState();
   cur={student,image:null,res:{readable:true,transcript:"",descriptors:[],first_error:null,hint:"",error_tags:[]},aiScore:0,approved:true,pending:true};
   renderCheck();$("checkCard").scrollIntoView({behavior:"smooth"});
   try{
     const files=await loadFiles(),images=await Promise.all(files.map(shrink));
     cur.image=images[0];renderCheck();
-    const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId,images,lang:requestLang,student})});
+    const r=await fetch("/api/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({taskId,images,lang:requestLang,student,...(customTask?{customTask}:{})})});
     const d=await r.json();if(!r.ok)throw new Error(d.error||t("photoError"));
     cur.res=d;cur.transcript=d.transcript;cur.aiScore=scoreOf(d);cur.aiHint=d.hint;cur.aiDescriptors=structuredClone(d.descriptors);cur.approved=false;cur.pending=false;renderCheck();
   }catch(err){cur.transcript=err.message||t("photoError");cur.pending=false;cur.failed=true;renderCheck()}
@@ -295,7 +330,7 @@ async function checkPhotos(loadFiles,student){
 }
 $("file").onchange=(e)=>{
   const files=[...e.target.files].slice(0,4);e.target.value="";if(!files.length)return;
-  const n=mine().length+(task().variants?1:demo.works.length+1);
+  const n=mine().length+(task().variants||task().custom?1:demo.works.length+1);
   return checkPhotos(()=>files,"У-"+String(n).padStart(2,"0"));
 };
 $("samplePhoto").onclick=()=>checkPhotos(()=>Promise.all([1,2].map(async(page)=>{
@@ -305,7 +340,9 @@ $("samplePhoto").onclick=()=>checkPhotos(()=>Promise.all([1,2].map(async(page)=>
 })),t("sampleStudent"));
 
 Promise.all([fetch("/api/tasks").then(r=>r.json()),fetch("/api/demo").then(r=>r.json()),fetch("/api/status").then(r=>r.json()),fetch("/api/schedule").then(r=>r.json())])
-  .then(([a,b,c,d])=>{tasks=a;demo=b;status=c;schedule=d;renderStatic();showScreen("schedule")});
+  .then(([a,b,c,d])=>{tasks=a;demo=b;status=c;schedule=d;
+    try{const saved=JSON.parse(localStorage.getItem("tekser.customTasks")||"[]");if(Array.isArray(saved)){for(const value of saved){const item=customTaskFrom(value);if(item&&!tasks.some(x=>x.id===item.id))tasks.push(item)}}}catch{}
+    renderStatic();showScreen("schedule")});
 </script>
 </body>
 </html>

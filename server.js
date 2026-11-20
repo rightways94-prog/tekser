@@ -23,6 +23,9 @@ const T = {
   ru: {
     noKey: "Проверка фото выключена: нет ключа API. Работает демо-режим.",
     missing: "Нужны задание и фото.",
+    customInvalid: "Укажите название (до 120 знаков), условие и эталон (до 10 000 знаков), 1–30 дескрипторов (до 500 знаков каждый).",
+    criterionError: (text) => `Не выполнено: ${text}`,
+    criterionTip: "Повторите этот шаг на похожем задании.",
     limit: (n) => `Лимит: ${n} проверок в час. Попробуйте позже или используйте демо-работы.`,
     upstream: "Ошибка OpenAI. Попробуйте позже.",
     failed: "Не удалось проверить фото. Попробуйте ещё раз.",
@@ -30,6 +33,9 @@ const T = {
   kk: {
     noKey: "Фотоны тексеру өшірулі: API кілті жоқ. Демо режимі жұмыс істейді.",
     missing: "Тапсырма мен фото қажет.",
+    customInvalid: "Атауын (120 таңбаға дейін), шартын және үлгі жауабын (10 000 таңбаға дейін), 1–30 дескрипторды (әрқайсысы 500 таңбаға дейін) көрсетіңіз.",
+    criterionError: (text) => `Орындалмады: ${text}`,
+    criterionTip: "Осы қадамды ұқсас тапсырмада қайталаңыз.",
     limit: (n) => `Шектеу: сағатына ${n} тексеру. Кейінірек қайталаңыз немесе демо жұмыстарды пайдаланыңыз.`,
     upstream: "OpenAI қатесі. Кейінірек қайталаңыз.",
     failed: "Фотоны тексеру мүмкін болмады. Қайта көріңіз.",
@@ -86,7 +92,7 @@ function buildPrompt(task, lang, pages) {
     ? Object.entries(task.variants).map(([v, ps]) => `ВАРИАНТ ${v}:\n` + ps.map((p) => `${p.id}) ${p.text} → эталон: ${p.answer}`).join("\n")).join("\n\n")
     : `Задание и эталон:\n${task.parts.map((p) => `${p.id}) ${p.text} → эталон: ${p.answer}`).join("\n")}`;
   return [
-    "Ты проверяешь письменную работу ученика по математике (фото) по дескрипторам суммативного оценивания (БЖБ/СОР).",
+    task.custom ? "Ты проверяешь письменную работу ученика (фото) по заданию, эталону и дескрипторам учителя." : "Ты проверяешь письменную работу ученика по математике (фото) по дескрипторам суммативного оценивания (БЖБ/СОР).",
     pages > 1 ? `Работа одного ученика на ${pages} фото (страницах) — оцени её целиком.` : "",
     task.variants ? "Номер варианта напечатан на листе (VARIANT NN). Определи его, запиши в variant и используй эталон этого варианта. Если номер не виден — variant=\"?\", подбери вариант по условиям." : 'variant = "".',
     key,
@@ -109,12 +115,29 @@ function outputText(r) {
   return "";
 }
 
+function customAssignment(value) {
+  const text = (s, max) => typeof s === "string" && s.trim().length > 0 && s.length <= max;
+  if (!value || typeof value !== "object" || typeof value.id !== "string" || !/^custom-[a-zA-Z0-9-]{1,80}$/.test(value.id)
+    || !text(value.title, 120) || !text(value.prompt, 10000) || !text(value.answer, 10000)
+    || !Array.isArray(value.descriptors) || !value.descriptors.length || value.descriptors.length > 30
+    || !value.descriptors.every(d => text(d, 500))) return null;
+  const descriptors = value.descriptors.map((d, i) => ({ id: `D${i + 1}`, part: "1", text: d.trim(), kk: d.trim() }));
+  return {
+    id: value.id, custom: true,
+    parts: [{ id: "1", text: value.prompt.trim(), answer: value.answer.trim() }],
+    descriptors,
+    errorTags: descriptors.map(d => ({ id: d.id, ru: T.ru.criterionError(d.text), kk: T.kk.criterionError(d.text) })),
+  };
+}
+
 app.post("/api/check", async (req, res) => {
   const messages = T[req.body?.lang === "kk" ? "kk" : "ru"];
   if (!KEY) return res.status(503).json({ error: messages.noKey });
   const { taskId, image, lang } = req.body || {};
   const images = (Array.isArray(req.body?.images) ? req.body.images : [image]).filter((x) => typeof x === "string" && x.startsWith("data:image/")).slice(0, 4);
-  const task = tasks.find((t) => t.id === taskId);
+  const hasCustom = req.body?.customTask !== undefined;
+  const task = hasCustom ? customAssignment(req.body.customTask) : tasks.find((t) => t.id === taskId);
+  if (hasCustom && (!task || (taskId && taskId !== task.id))) return res.status(400).json({ error: messages.customInvalid });
   if (!task || !images.length) return res.status(400).json({ error: messages.missing });
   if (!allowed(req.ip)) return res.status(429).json({ error: messages.limit(LIMIT) });
   try {
@@ -133,6 +156,13 @@ app.post("/api/check", async (req, res) => {
     const data = await r.json();
     if (!r.ok) return res.status(502).json({ error: messages.upstream });
     const result = JSON.parse(outputText(data));
+    if (task.custom) {
+      if (!Array.isArray(result.descriptors) || result.descriptors.length !== task.descriptors.length
+        || task.descriptors.some(d => result.descriptors.filter(x => x.id === d.id && typeof x.met === "boolean").length !== 1)) {
+        return res.status(502).json({ error: messages.upstream });
+      }
+      result.error_tags = result.descriptors.filter(d => !d.met).map(d => d.id);
+    }
     res.json({ ...result, model: MODEL }); // фото нигде не сохраняется
   } catch {
     res.status(500).json({ error: messages.failed });
