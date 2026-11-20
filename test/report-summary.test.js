@@ -41,3 +41,8 @@ test("approved rows expose only the first error to the compact table", () => {
   assert.equal(details.firstError, "Первый критерий");
   assert.ok(details.error.includes("Второй критерий"), "CSV retains all error criteria");
 });
+
+test("different scales do not merge unrelated D1 criteria",()=>{
+ const r=report([{student:"У-01",score:0,max:1,tags:["D1"],descriptors:["Строит график"],scaleId:"common"},{student:"У-02",score:0,max:1,tags:["D1"],descriptors:["Обосновывает вывод"],scaleId:"separate"}]);
+ assert.equal(r.errors.length,2);assert.ok(r.errors.every(e=>e.count===1));
+});

@@ -203,7 +203,7 @@ test("batch reference fixes descriptors once, solves another variant and reuses 
   let variant = 0;
   const app = server(payload => {
     if (payload.text.format.name === "task_draft") return draftResult;
-    if (payload.text.format.name === "batch_variant") { variant++; return { sameVariant: variant === 2, compatible: true, title: "Вариант 2", prompt: "1. Найдите 3²", answer: "1. 9" }; }
+    if (payload.text.format.name === "batch_variant") { variant++; return { sameVariant: variant === 2, referenceTaskNumbers: ["1", "2"], taskNumbers: ["1", "2"], title: "Вариант 2", prompt: "1. Найдите 3²", answer: "1. 9" }; }
     return result;
   });
   const first = await app.batch({ images: [photo] });
@@ -221,12 +221,19 @@ test("batch reference fixes descriptors once, solves another variant and reuses 
   assert.equal(app.calls.filter(p => p.text.format.name === "batch_variant").length, 2);
   assert.ok(app.calls[3].input[0].content[0].text.includes("1. 9"));
 });
-test("incompatible variant is not graded on an invented different maximum", async () => {
-  const app = server(() => ({ sameVariant: false, compatible: false, title: "Другое", prompt: "Другое задание", answer: "Нет" }));
+test("different task count gets its own scale and is still graded", async () => {
+  const own = { ...draftResult, prompt: "1. Пример 2. Пример 3. Пример", descriptors: ["Шаг 1", "Шаг 2", "Шаг 3"] };
+  const app = server(payload => {
+    if (payload.text.format.name === "batch_variant") return { sameVariant: false, referenceTaskNumbers: ["1", "2"], taskNumbers: ["1", "2", "3"], title: own.title, prompt: own.prompt, answer: own.answer };
+    if (payload.text.format.name === "task_draft") return own;
+    return { ...result, descriptors: [...result.descriptors, { id: "D3", met: true, comment: "" }] };
+  });
   const response = await app.batch({ images: [photo], referenceTask: draftResult });
-  assert.equal(response.statusCode, 422);
-  assert.equal(response.body.result, undefined);
-  assert.equal(app.calls.length, 1);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.differentScale, true);
+  assert.equal(response.body.task.descriptors.length, 3);
+  assert.equal(response.body.referenceTask.descriptors.length, 2);
+  assert.equal(app.calls.length, 3);
 });
 test("a prepared reference survives first grading failure and invalid references are rejected", async () => {
   const app = server(payload => payload.text.format.name === "task_draft" ? draftResult : { ...result, readable: false });
@@ -236,4 +243,30 @@ test("a prepared reference survives first grading failure and invalid references
   const invalid = server(batchAI);
   assert.equal((await invalid.batch({ images: [photo], referenceTask: {} })).statusCode, 400);
   assert.equal(invalid.calls.length, 0);
+});
+
+test("real worksheet variants 22, 21 and 25 all use the common 20-point scale", async () => {
+  const worksheet = JSON.parse(readFileSync(new URL("../data/tasks.json", import.meta.url))).find(t => t.id === "alg7-sa1-exponents");
+  const order=["22","21","25"];let current=0;
+  const definition=v=>({ title:`Вариант ${v}`,prompt:worksheet.variants[v].map(p=>`${p.id}. ${p.text}`).join("\n"),answer:worksheet.variants[v].map(p=>`${p.id}. ${p.answer}`).join("\n"),descriptors:worksheet.descriptors.map(d=>d.text) });
+  const app=server(payload=>{
+    if(payload.text.format.name==="task_draft")return definition(order[current]);
+    if(payload.text.format.name==="batch_variant"){
+      current++;const d=definition(order[current]);
+      return {...d,sameVariant:false,compatible:false,referenceTaskNumbers:["1","2","3","4","5","6"],taskNumbers:["1","2","3","4","5","6"]};
+    }
+    return {...result,first_error:null,descriptors:worksheet.descriptors.map(d=>({id:d.id,met:true,comment:""}))};
+  });
+  let reference;
+  for(const v of order){
+    const response=await app.batch({images:[photo,photo],...(reference?{referenceTask:reference}:{})});
+    assert.equal(response.statusCode,200,`Variant ${v} must not be rejected`);
+    reference ||= response.body.referenceTask;
+    assert.equal(response.body.task.title,`Вариант ${v}`);
+    assert.equal(response.body.differentScale,false);
+    assert.equal(response.body.result.descriptors.length,20);
+    assert.deepEqual(Array.from(response.body.task.descriptors),Array.from(reference.descriptors));
+  }
+  assert.equal(app.calls.filter(p=>p.text.format.name==="task_draft").length,1);
+  assert.ok(app.calls.at(-1).input[0].content[0].text.includes(worksheet.variants["25"][0].answer));
 });
